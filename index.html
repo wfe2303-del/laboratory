@@ -121,6 +121,23 @@
   line-height: calc(var(--admin-h) - 2px);
   border-radius: 12px;
 }
+    /* 제목 + 로고 정렬/크기 */
+.brand{ display:flex; align-items:center; gap:10px; }
+.brand h1{ margin:0; font-size:22px; }
+
+/* 로고 크기 조절은 여기서 */
+.brand-logo{
+  width: 36px; height: 36px;
+  object-fit: contain;
+  border:1px solid var(--line);
+  border-radius: 8px;
+  background:
+    /* 만약 이미지 렌더가 지연될 때도 깔끔하게 보이도록 가벼운 UI 패턴 */
+    radial-gradient(circle at 70% 20%, #93c5fd 0 30%, transparent 30% 100%),
+    radial-gradient(circle at 88% 38%, #ef4444 0 18%, transparent 18% 100%),
+    #fff;
+}
+
 
 
     /* ===== panels ===== */
@@ -167,7 +184,12 @@
   <button id="settingsBtn" class="gear-btn" title="설정" type="button" aria-label="관리자 설정 열기">⚙</button>
 
   <div class="wrap">
-    <h1>클래스어라운드 카카오톡 입장자 체크봇</h1>
+    <header class="brand">
+  <img class="brand-logo" alt="ClassAround" 
+       src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAFoAAAAyCAYAAABbOq6tAAAACXBIWXMAAAsSAAALEgHS3X78AAABc0lEQVR4nO2aQW7CMBBFf1k7XG8yq4C1Cz8v2lP8wq8g2v3w3KpYyJgqY2cK2iM9x4bq9QwO3f0K2yqf3v4m0Gm7dJQb3y8bXqD3bD6GvQv5pxwQm6e1wYc2zYF1w5c7mJ1y1sz2G7c5Y7sWw1r6f1E3s3mS7m0g5U9r0IY7sSs9c0g3XoKqH7t0p2J8gTq4aU9oX8HXiJ8c0r3d1Qb2VQ5i1d3o7z0P7ZyC8x0fGZ7mH7r9p0p+G9y3cQ2o7L6p6g1a0tHqf6q3Q7r0j9r0nX8f2kqf9dE8vQdUq0o7z7Cjv7Z2p1l4b2V2r9kz8aPGQdVQW3p6Zg2oK+mQG6bqDncg4H8m5i3fU8m6WcHbG0t8kq9QmU3W0xDk8aX7n1Kx2bS8G3w1i2D7q2Z9bP5d6g9f2WcQG7N5D4dP6c8oWcE7Z1oS6M0m8p1oX8oJr2I6g3n7Qz8Qn3mG8ZQ8o8oVY7x0b9i0b9xQb8v0Qb8R9p0h+XwFQZ3C1wqvQnQwAAAAASUVORK5CYII=" />
+  <h1>클래스어라운드 카카오톡 입장자 체크봇</h1>
+</header>
+
 
     <!-- 로그인(공용) -->
     <div class="card">
@@ -781,4 +803,5 @@ document.addEventListener('DOMContentLoaded', ()=>{
 </script>
 </body>
 </html>
+
 
