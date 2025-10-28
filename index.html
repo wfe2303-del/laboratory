@@ -39,6 +39,89 @@
     table{width:100%;border-collapse:collapse;border:1px solid var(--line);overflow:auto;background:#fff;border-radius:12px}
     th,td{padding:8px 10px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}
     th{color:#0f172a;font-weight:600;background:#f1f5f9;position:sticky;top:0}
+/* ===== 관리자 UI: 예전 스샷 스타일로 맞춤 ===== */
+
+/* 드로어 크기/여백 */
+.admin-drawer{
+  width: 520px;                 /* 필요하면 480~560px로 조절 */
+  padding: 14px 16px 18px;
+}
+
+/* 카드(박스) 톤/모서리/테두리 */
+.admin-drawer .card{
+  background:#fff;              /* ← 예전처럼 흰 바탕 */
+  border:1px solid var(--line);
+  border-radius:16px;
+  padding:14px 16px;
+  box-shadow:none;              /* 그림자 제거 */
+  margin:0 0 12px;
+}
+
+/* 섹션 타이틀/라벨 톤 */
+.admin-drawer h4{ margin:0 0 8px; font-weight:700; }
+.admin-drawer label{
+  color:#64748b;                /* 예전 회색 라벨 */
+  font-size:13px;
+  margin:6px 0 4px;
+}
+
+/* 인풋 크기/라운드 */
+.admin-drawer input{
+  height:42px;
+  border:1px solid var(--line);
+  border-radius:12px;
+  padding:10px 12px;
+}
+
+/* 버튼(연결 추가/전체 삭제/삭제) */
+.admin-drawer .btn{
+  height:36px;
+  padding:0 12px;
+  border-radius:12px;
+}
+.admin-drawer .btn:hover{
+  border-color:var(--accent-strong);
+  box-shadow:0 0 0 3px rgba(96,165,250,.18);
+}
+
+/* 등록 테이블 톤 */
+#admList{ border-collapse:collapse; width:100%; }
+#admList th{
+  background:#f1f5f9;           /* 헤더 옅은 회색 */
+  font-weight:600;
+  padding:10px;
+}
+#admList td{
+  padding:10px;
+  border-top:1px solid var(--line);
+  font-size:13px;
+  vertical-align:middle;
+}
+#admList tr:hover td{ background:#f9fafb; }  /* 행 hover */
+
+/* 테이블 안 ‘삭제’ 버튼을 둥글고 작게 */
+#admList .btn{
+  height:34px; padding:0 12px; border-radius:12px;
+}
+
+/* 하단 메타(“총 N개 연결 …”) 색/여백 */
+#admMeta{ color:#94a3b8; margin-top:8px; }
+/* 관리자 입력칸 가로폭 통일 */
+.admin-drawer input[type="text"],
+.admin-drawer input:not([type]),
+.admin-drawer select,
+.admin-drawer textarea{
+  width: 100%;
+  box-sizing: border-box;
+}
+:root{ --admin-h: 44px; }     /* 42~48px 선호; 취향대로 조정 */
+.admin-drawer input,
+.admin-drawer .btn{
+  height: var(--admin-h);
+  line-height: calc(var(--admin-h) - 2px);
+  border-radius: 12px;
+}
+
 
     /* ===== panels ===== */
     .panels{display:grid;gap:16px}
@@ -698,3 +781,4 @@ document.addEventListener('DOMContentLoaded', ()=>{
 </script>
 </body>
 </html>
+
