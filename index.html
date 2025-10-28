@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>클래스어라운드 · 카카오톡 입장자 체크봇 (Sheets API)</title>
-  <!-- Google Identity Services -->
+  <!-- Google Identity Services (OAuth) -->
   <script src="https://accounts.google.com/gsi/client" async defer></script>
   <style>
     :root{
@@ -27,7 +27,7 @@
       appearance:none; border:1px solid var(--line); background:#fff; color:var(--text);
       padding:10px 14px; border-radius:var(--radius); cursor:pointer; transition:all .15s ease;
       height:var(--ctl-h); display:inline-flex; align-items:center; justify-content:center;
-      pointer-events:auto; user-select:none;
+      user-select:none;
     }
     .btn.acc{background:var(--accent);border-color:var(--accent);color:#fff}
     .btn:hover{border-color:var(--accent-strong);box-shadow:0 0 0 3px rgba(96,165,250,.2)}
@@ -61,19 +61,19 @@
 </head>
 <body>
   <!-- Settings Button -->
-  <button id="settingsBtn" class="gear-btn" title="관리자 설정">
+  <button class="gear-btn" title="관리자 설정" data-click="open-admin">
     <svg width="22" height="22" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
       <path d="M12 15.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7Z" stroke="#0f172a" stroke-width="1.5"/>
-      <path d="M19.4 15a7.9 7.9 0 0 0 .07-1l1.74-1.26a.9.9 0  0 0 .2-1.2l-1.65-2.86a.9.9 0  0 0-1.1-.39l-2 .8c-.28-.17-.57-.33-.86-.49l-.3-2.12a.9.9 0  0 0-.9-.77h-3.3a.9.9 0  0 0-.9.77l-.3 2.12c-.29.16-.58.32-.86.5l-2-.8a.9.9 0 0 0-1.1.39L2.6 11.5a.9.9 0  0 0 .2 1.2L4.54 14a7.9 7.9 0  0 0 0 1l-1.74 1.26a.9.9 0  0 0-.2 1.2l1.65 2.86c.24.42.74.6 1.16.4l2-.8c.27.18.56.34.86.5l.3 2.12c.07.44.45.77.9.77h3.3c.45 0 .83-.33.9-.77l.3-2.12c.3-.16.6-.32.87-.5l2 .8c.42.2.92.02 1.16-.4l1.64-2.86a.9.9 0  0 0-.2-1.2L19.4 15Z" stroke="#0f172a" stroke-width="1.5"/>
+      <path d="M19.4 15a7.9 7.9 0  0 0 .07-1l1.74-1.26a.9.9 0  0 0 .2-1.2l-1.65-2.86a.9.9 0  0 0-1.1-.39l-2 .8c-.28-.17-.57-.33-.86-.49l-.3-2.12a.9.9 0  0 0-.9-.77h-3.3a.9.9 0  0 0-.9.77l-.3 2.12c-.29.16-.58.32-.86.5l-2-.8a.9.9 0 0 0-1.1.39L2.6 11.5a.9.9 0  0 0 .2 1.2L4.54 14a7.9 7.9 0  0 0 0 1l-1.74 1.26a.9.9 0  0 0-.2 1.2l1.65 2.86c.24.42.74.6 1.16.4l2-.8c.27.18.56.34.86.5l.3 2.12c.07.44.45.77.9.77h3.3c.45 0 .83-.33.9-.77l.3-2.12c.3-.16.6-.32.87-.5l2 .8c.42.2.92.02 1.16-.4l1.64-2.86a.9.9 0  0 0-.2-1.2L19.4 15Z" stroke="#0f172a" stroke-width="1.5"/>
     </svg>
   </button>
 
   <!-- Admin Drawer -->
-  <div id="adminOverlay" class="admin-overlay"></div>
+  <div id="adminOverlay" class="admin-overlay" data-click="close-admin"></div>
   <aside id="adminDrawer" class="admin-drawer">
     <div class="admin-head">
       <h3 style="margin:0">관리자 설정</h3>
-      <button id="closeAdmin" class="x-btn">닫기</button>
+      <button class="x-btn" data-click="close-admin">닫기</button>
     </div>
 
     <div class="card" style="margin:0">
@@ -82,7 +82,7 @@
         <input id="admSheetUrl" type="text" placeholder="스프레드시트 URL 또는 ID" />
         <input id="admLabel" type="text" placeholder="표시 이름(선택)" />
         <input id="admReadCol" type="text" placeholder="읽을 열 (예: C)" />
-        <button id="admAdd" class="btn" type="button">연결 추가</button>
+        <button class="btn" data-click="adm-add">연결 추가</button>
       </div>
       <div id="admErr" class="err" style="margin-top:6px"></div>
     </div>
@@ -98,9 +98,9 @@
         <tbody id="admPackList"><tr><td colspan="4" style="color:#64748b">연결이 없습니다.</td></tr></tbody>
       </table>
       <div class="row" style="padding:10px">
-        <button id="admRefresh" class="btn" type="button">시트 목록 새로고침</button>
-        <button id="admDel" class="btn" type="button">선택 삭제</button>
-        <button id="admClear" class="btn" type="button">전체 삭제</button>
+        <button class="btn" data-click="adm-refresh">시트 목록 새로고침</button>
+        <button class="btn" data-click="adm-del">선택 삭제</button>
+        <button class="btn" data-click="adm-clear">전체 삭제</button>
       </div>
       <div class="hint" id="admMetaHint" style="padding:0 10px 10px"></div>
     </div>
@@ -109,30 +109,30 @@
   <div class="wrap">
     <h1>클래스어라운드 카카오톡 입장자 체크봇</h1>
     <div class="sub">
-      흐름) <b>읽기 시트</b> 이름열 기준으로 입장 판정(동명이인 시 닉네임 끝4로 구분) →
-      <b>공유 시트</b>는 I=결제완료 중 D(이름; 동명이인일 때 E=끝4도 일치)만 <b>S=입장</b> 기록.
-      퇴장/강퇴(“<b>…님이 나갔습니다</b>”, “<b>…님을 내보냈습니다</b>”)는 최종 입장 집합에서 제외.
+      흐름) <b>읽기 시트</b> 이름열로 현재 입장 판정(동명이인 시 닉네임 끝4로 구분) →
+      <b>공유 시트</b>는 I=결제완료 중 D(이름) 기준, 동명이인일 때만 E(끝4)도 일치해야 <b>S=입장</b> 기록.
+      퇴장/강퇴(“…나갔습니다/내보냈습니다”)는 최종 입장 집합에서 제외.
     </div>
 
     <!-- 인증 -->
     <div class="card">
       <div class="row">
-        <button id="gsLoginBtn" class="btn acc" type="button">Google 로그인</button>
-        <button id="gsLogoutBtn" class="btn" type="button">로그아웃</button>
+        <button class="btn acc" data-click="login">Google 로그인</button>
+        <button class="btn" data-click="logout">로그아웃</button>
         <span id="authState" class="hint">미로그인</span>
       </div>
       <div id="authErr" class="err" style="margin-top:6px"></div>
       <div class="dbg" id="dbgAuth"></div>
     </div>
 
-    <!-- 연결 선택 + 파라미터 -->
+    <!-- 연결 선택 + 실행 -->
     <div class="card">
       <div class="controls-grid">
         <div>
           <label>스프레드시트 연결</label>
           <div class="row">
             <select id="sheetPackSelect" style="min-width:260px"></select>
-            <button id="refreshMeta" class="btn" type="button">시트 목록 새로고침</button>
+            <button class="btn" data-click="refresh-meta">시트 목록 새로고침</button>
           </div>
           <div class="hint">읽기 시작 행: <b id="readStartHint">2</b> · 읽을 열: <b id="readColHint">-</b> · 공유 시작 행: <b id="writeStartHint">2</b></div>
         </div>
@@ -142,7 +142,7 @@
             <select id="readSheetSelect" style="min-width:180px"></select>
             <select id="writeSheetSelect" style="min-width:180px"></select>
           </div>
-          <div class="hint">공유 시트: D(이름)·E(끝4)·I(결제상태)·S(결과). <b>‘입장’만 씀</b>(미입장은 빈칸).</div>
+          <div class="hint">공유 시트: D(이름)·E(끝4)·I(결제상태)·S(결과). <b>‘입장’만 씀</b>(미입장은 공백).</div>
         </div>
         <div>
           <label>카카오톡 대화 <span class="hint">.txt</span></label>
@@ -156,8 +156,8 @@
           <input id="previewOnly" type="checkbox" />
           <span class="hint">체크만(쓰기 금지)</span>
         </label>
-        <button id="runBtn" class="btn acc" type="button">실행</button>
-        <button id="demoBtn" class="btn" type="button">데모</button>
+        <button class="btn acc" data-click="run">실행</button>
+        <button class="btn" data-click="demo">데모</button>
         <span id="pills" class="row"></span>
       </div>
       <div id="err" class="err" style="margin-top:8px"></div>
@@ -167,36 +167,24 @@
   </div>
 
 <script>
-/* ===== 전역 오류를 화면에 표시 ===== */
+/* ===== 전역 오류를 화면에 표시 (조용히 죽는 문제 차단) ===== */
 (function(){
   const out=(m,src,l,c,e)=>{ const el=document.getElementById('err'); const st=e?.stack?'\n'+e.stack:''; if(el) el.textContent='오류: '+m+(src?`\n${src}:${l}:${c}`:'')+st; };
   window.addEventListener('error', e=>out(e.message,e.filename,e.lineno,e.colno,e.error));
   window.addEventListener('unhandledrejection', e=>{ const r=e.reason||{}; out(r.message||String(r)); });
 })();
 
-/* ===== 상수 ===== */
+/* ===== 상수/유틸 ===== */
 const READ_START_ROW  = 2;
 const WRITE_START_ROW = 2;
 const CLIENT_ID = "18228268359-iifm4ck3j9kqj74eh1p90tco1k2mbpi0.apps.googleusercontent.com";
-
-/* ===== 유틸 ===== */
 const $$ = id=>document.getElementById(id);
-const val = id=>($$(id)?.value??'');
 const txt = (id,v)=>{ const el=$$(id); if(el) el.textContent=v??''; };
-function bindOnce(el, ev, handler){
-  if(!el) return;
-  const key=`__bound_${ev}`;
-  if(el[key]) return;
-  el.addEventListener(ev, e=>{
-    try{ handler(e); }catch(err){ console.error(err); const er=$$('err'); if(er) er.textContent='오류: '+(err?.message||err); }
-  });
-  el[key]=true;
-}
 function normalizeName(n){
   let s=String(n||'').trim();
-  s=s.replace(/[\s]*[\(\[\{（【][^)\]\}）】]*[\)\]\}）】]\s*$/,'');
-  s=s.replace(/[/_\-\s]+$/,'');
-  s=s.replace(/\s+/g,' ');
+  s=s.replace(/[\s]*[\(\[\{（【][^)\]\}）】]*[\)\]\}）】]\s*$/,''); // 괄호부 제거
+  s=s.replace(/[/_\-\s]+$/,''); // 끝 구분자 제거
+  s=s.replace(/\s+/g,' ');      // 공백 정리
   return s;
 }
 const last4 = s=>String(s||'').replace(/[^\d]/g,'').slice(-4);
@@ -225,7 +213,7 @@ function initAuth(){
     $$('#dbgAuth').textContent='client ready';
   }catch(e){ txt('authErr','초기화 오류: '+(e?.message||e)); }
 }
-function requestAccess(){ if(!tokenClient) initAuth(); tokenClient?.requestAccessToken({prompt:'consent'}); }
+function requestAccess(){ tokenClient? tokenClient.requestAccessToken({prompt:'consent'}) : initAuth(); }
 function revokeAccess(){ if(accessToken){ google.accounts.oauth2.revoke(accessToken,()=>{ accessToken=null; txt('authState','미로그인'); $$('#dbgAuth').textContent='revoked'; }); } }
 function requireAuth(){ if(!accessToken) throw new Error('먼저 Google 로그인하세요.'); }
 
@@ -233,9 +221,7 @@ function requireAuth(){ if(!accessToken) throw new Error('먼저 Google 로그�
 async function gFetch(url, init){
   requireAuth();
   const res = await fetch(url, { ...(init||{}), headers:{ Authorization:`Bearer ${accessToken}`, 'Content-Type':'application/json', ...(init?.headers||{}) }});
-  if(!res.ok){
-    const t=await res.text(); throw new Error(t||('HTTP '+res.status));
-  }
+  if(!res.ok){ const t=await res.text(); throw new Error(t||('HTTP '+res.status)); }
   return res.json();
 }
 async function listSheets(id){
@@ -251,12 +237,8 @@ async function batchUpdateValues(id, data){
   return await gFetch(u,{method:'POST',body:JSON.stringify({valueInputOption:'USER_ENTERED',data})});
 }
 
-/* ===== Admin Drawer: open/close ===== */
-function openAdmin(){ $$('#adminOverlay').style.display='block'; $$('#adminDrawer').style.display='flex'; renderPackList(); }
-function closeAdmin(){ $$('#adminOverlay').style.display='none'; $$('#adminDrawer').style.display='none'; }
-
-/* ===== 관리자 저장소 ===== */
-const PACKS_KEY='ca_gsapi_sources_v14'; // 키 갱신(중복저장/구버전 쓰레기 데이터 차단)
+/* ===== Admin 저장소 ===== */
+const PACKS_KEY='ca_gsapi_sources_v16'; // 새 키로 초기화
 const loadPacks=()=>{ try{return JSON.parse(localStorage.getItem(PACKS_KEY)||'[]');}catch(e){return [];} };
 const savePacks=p=>localStorage.setItem(PACKS_KEY,JSON.stringify(p));
 const addPack=p=>{ const a=loadPacks(); a.push(p); savePacks(a); };
@@ -273,38 +255,35 @@ function sanitizeCol(c){
   if(/^\d+$/.test(s)){ let n=parseInt(s,10), r=''; while(n>0){ const q=(n-1)%26; r=String.fromCharCode(65+q)+r; n=Math.floor((n-1)/26); } return r; }
   return null;
 }
+
+/* ===== Admin 로직 ===== */
 async function admAddPack(){
   try{
     txt('admErr','');
-    const btn=$$('admAdd'); btn.disabled=true;
-    const id = extractSheetId(val('admSheetUrl')); if(!id) throw new Error('스프레드시트 URL 또는 ID를 입력하세요.');
-    const label = val('admLabel') || ('시트 '+id.slice(0,6)+'…');
-    const col = sanitizeCol(val('admReadCol')||'C') || 'C';
+    const id = extractSheetId($$('admSheetUrl').value); if(!id) throw new Error('스프레드시트 URL 또는 ID를 입력하세요.');
+    const label = ($$('admLabel').value||'시트 '+id.slice(0,6)+'…');
+    const col = sanitizeCol($$('admReadCol').value||'C') || 'C';
     const sheets = await listSheets(id);
     addPack({ id: crypto.randomUUID(), label, sheetId:id, readCol:col, sheets, updatedAt:new Date().toISOString() });
     renderPackList(); populatePacks();
     $$('#admSheetUrl').value=''; $$('#admLabel').value=''; $$('#admReadCol').value='';
   }catch(e){ txt('admErr', e?.message||String(e)); }
-  finally{ const btn=$$('admAdd'); if(btn) btn.disabled=false; }
 }
-function admDelPack(){
-  const pid=val('sheetPackSelect'); if(!pid) return;
-  removePack(pid); renderPackList(); populatePacks();
-}
+function admDelPack(){ const pid=$$('sheetPackSelect').value; if(!pid) return; removePack(pid); renderPackList(); populatePacks(); }
 function admClearAll(){ if(confirm('모든 연결을 삭제할까요?')){ localStorage.removeItem(PACKS_KEY); renderPackList(); populatePacks(); } }
-
+async function admRefresh(){ try{ const sel=$$('sheetPackSelect'); if(!sel||!sel.value) return;
+  const packs=loadPacks(); const idx=packs.findIndex(p=>p.id===sel.value); if(idx<0) return;
+  packs[idx].sheets = await listSheets(packs[idx].sheetId); savePacks(packs); onPackChanged(); renderPackList();
+}catch(e){ txt('admErr', e?.message||String(e)); } }
 function renderPackList(){
   const packs=loadPacks(), tb=$$('admPackList'); tb.innerHTML='';
   if(!packs.length){ tb.innerHTML='<tr><td colspan="4" style="color:#64748b">연결이 없습니다.</td></tr>'; $$('#admMetaHint').textContent=''; return; }
   packs.forEach(p=>{
     const tr=document.createElement('tr');
     tr.innerHTML=`<td>${p.label}</td><td>${(p.sheets||[]).length}</td><td>${p.readCol||'C'}</td>
-      <td><button class="btn" data-del="${p.id}">삭제</button></td>`;
+      <td><button class="btn" data-click="adm-del-by" data-id="${p.id}">삭제</button></td>`;
     tb.appendChild(tr);
   });
-  tb.querySelectorAll('button[data-del]').forEach(b=> b.addEventListener('click', e=>{
-    removePack(e.target.getAttribute('data-del')); renderPackList(); populatePacks();
-  }));
   $$('#admMetaHint').textContent = `총 ${packs.length}개 연결 · ${new Date().toLocaleString()} 기준`;
 }
 
@@ -318,15 +297,9 @@ function populatePacks(){
   const prev=sessionStorage.getItem('ca_prev_pack'); if(prev){ const o=[...sel.options].find(x=>x.value===prev); if(o) o.selected=true; }
   onPackChanged();
 }
-async function refreshMeta(){
-  try{
-    const sel=$$('sheetPackSelect'); if(!sel||!sel.value) return;
-    const packs=loadPacks(); const idx=packs.findIndex(p=>p.id===sel.value); if(idx<0) return;
-    packs[idx].sheets = await listSheets(packs[idx].sheetId); savePacks(packs); onPackChanged();
-  }catch(e){ txt('err', e?.message||String(e)); }
-}
+async function refreshMeta(){ await admRefresh(); }
 function onPackChanged(){
-  const packs=loadPacks(); const id=val('sheetPackSelect'); sessionStorage.setItem('ca_prev_pack',id||'');
+  const packs=loadPacks(); const id=$$('sheetPackSelect').value; sessionStorage.setItem('ca_prev_pack',id||'');
   const p=packs.find(x=>x.id===id);
   const rSel=$$('readSheetSelect'), wSel=$$('writeSheetSelect'); if(rSel) rSel.innerHTML=''; if(wSel) wSel.innerHTML='';
   if(!p){ txt('readColHint','-'); txt('readStartHint',READ_START_ROW); txt('writeStartHint',WRITE_START_ROW); return; }
@@ -338,9 +311,8 @@ function onPackChanged(){
 /* ===== 카톡 파서 ===== */
 const JOIN_PAT  = /(.*?)님이\s*(입장하셨습니다|들어왔습니다|입장했습니다|들어오셨습니다)[\s\.\!]*$/;
 const LEAVE_PAT = /(.*?)님이\s*(퇴장하셨습니다|나갔습니다|퇴장했습니다|나가셨습니다|내보냈습니다|내보냈어요)[\s\.\!]*$/;
-/* 강퇴: "관리자님이 홍길동님을 내보냈습니다" / 단문: "홍길동님을 내보냈습니다" */
-const KICK_PAT1 = /.+?님이\s+(.+?)님을\s*(내보냈습니다|내보냈어요)[\s\.\!]*$/;
-const KICK_PAT2 = /(.+?)님을\s*(내보냈습니다|내보냈어요)[\s\.\!]*$/;
+const KICK_PAT1 = /.+?님이\s+(.+?)님을\s*(내보냈습니다|내보냈어요)[\s\.\!]*$/; // "관리자님이 홍길동님을 내보냈습니다"
+const KICK_PAT2 = /(.+?)님을\s*(내보냈습니다|내보냈어요)[\s\.\!]*$/;          // "홍길동님을 내보냈습니다"
 
 function splitNickname(nick){
   const raw=String(nick||'').trim(); if(!raw) return null;
@@ -360,9 +332,9 @@ async function runMain(){
     const previewOnly = $$('#previewOnly')?.checked;
 
     const chatFile=$$('chatFile')?.files?.[0]; if(!chatFile) throw new Error('대화 txt 파일을 선택하세요.');
-    const packs=loadPacks(); const pack=packs.find(x=>x.id===val('sheetPackSelect')); if(!pack) throw new Error('스프레드시트를 먼저 선택하세요.');
-    const readSheet=val('readSheetSelect'); if(!readSheet) throw new Error('읽기 시트를 선택하세요.');
-    const writeSheet=val('writeSheetSelect'); if(!writeSheet) throw new Error('공유 시트를 선택하세요.');
+    const packs=loadPacks(); const pack=packs.find(x=>x.id===$$('sheetPackSelect').value); if(!pack) throw new Error('스프레드시트를 먼저 선택하세요.');
+    const readSheet=$$('readSheetSelect').value; if(!readSheet) throw new Error('읽기 시트를 선택하세요.');
+    const writeSheet=$$('writeSheetSelect').value; if(!writeSheet) throw new Error('공유 시트를 선택하세요.');
     const sheetId=pack.sheetId; const readCol=pack.readCol||'C';
 
     // 1) 카톡 파싱 (입장/퇴장/강퇴)
@@ -396,7 +368,6 @@ async function runMain(){
       if(ev.type==='join'){
         const set=ensure(nN);
         if(s.digits) set.add(s.digits); else set.add(NAME_ONLY);
-        if(set.size===0) active.delete(nN);
       }else{
         leftEver.add(nN);
         if(active.has(nN)){
@@ -482,7 +453,6 @@ async function runMain(){
       }
     }
 
-    const previewOnly = $$('#previewOnly')?.checked;
     if(updates.length && !previewOnly) await batchUpdateValues(sheetId, updates);
 
     // 상단 배지
@@ -513,6 +483,7 @@ async function runMain(){
     table('미확인 목록(동명이인/번호 문제)', ['name','reason'], unresolved);
 
     // 퇴장자 명단 (로스터 내)
+    const rosterSetN = new Set(rosterN);
     const leftRoster = leftFinal.filter(nN=>rosterSetN.has(nN)).map(nN=>{
       const idx = rosterN.indexOf(nN);
       return [roster[idx] || nN];
@@ -545,29 +516,42 @@ function runDemo(){
   const input=$$('chatFile'); if(input){ const dt=new DataTransfer(); dt.items.add(file); input.files=dt.files; }
 }
 
-/* ===== 바인딩: 즉시 + DOMContentLoaded + load ===== */
-function bindAll(){
-  bindOnce($$('settingsBtn'),'click', openAdmin);
-  bindOnce($$('adminOverlay'),'click', closeAdmin);
-  bindOnce($$('closeAdmin'),'click', closeAdmin);
+/* ===== 관리자 드로어 열고/닫기 ===== */
+function openAdmin(){ $$('#adminOverlay').style.display='block'; $$('#adminDrawer').style.display='flex'; renderPackList(); }
+function closeAdmin(){ $$('#adminOverlay').style.display='none'; $$('#adminDrawer').style.display='none'; }
 
-  bindOnce($$('admAdd'),'click', admAddPack);
-  bindOnce($$('admDel'),'click', admDelPack);
-  bindOnce($$('admClear'),'click', admClearAll);
-  bindOnce($$('admRefresh'),'click', refreshMeta);
+/* ===== 이벤트 위임: 버튼 클릭은 data-click만 붙이면 전부 동작 ===== */
+document.addEventListener('click', (e)=>{
+  const btn = e.target.closest('[data-click]');
+  if(!btn) return;
+  const act = btn.getAttribute('data-click');
+  try{
+    if(act==='open-admin') return openAdmin();
+    if(act==='close-admin') return closeAdmin();
 
-  bindOnce($$('sheetPackSelect'),'change', onPackChanged);
-  bindOnce($$('refreshMeta'),'click', refreshMeta);
+    if(act==='adm-add') return admAddPack();
+    if(act==='adm-del') return admDelPack();
+    if(act==='adm-clear') return admClearAll();
+    if(act==='adm-refresh') return admRefresh();
+    if(act==='adm-del-by'){ const id = btn.getAttribute('data-id'); if(id){ removePack(id); renderPackList(); populatePacks(); } return; }
 
-  bindOnce($$('gsLoginBtn'),'click', requestAccess);
-  bindOnce($$('gsLogoutBtn'),'click', revokeAccess);
+    if(act==='refresh-meta') return refreshMeta();
+    if(act==='login') return requestAccess();
+    if(act==='logout') return revokeAccess();
 
-  bindOnce($$('runBtn'),'click', runMain);
-  bindOnce($$('demoBtn'),'click', runDemo);
-}
-bindAll();
-document.addEventListener('DOMContentLoaded', ()=>{ bindAll(); populatePacks(); });
-window.addEventListener('load', ()=>{ bindAll(); if(window.google?.accounts?.oauth2) initAuth(); });
+    if(act==='run') return runMain();
+    if(act==='demo') return runDemo();
+  }catch(err){
+    console.error(err);
+    txt('err','오류: '+(err?.message||err));
+  }
+});
+
+/* ===== 초기화 ===== */
+(function init(){
+  populatePacks();
+})();
+window.addEventListener('load', ()=>{ if(window.google?.accounts?.oauth2) initAuth(); });
 </script>
 </body>
 </html>
