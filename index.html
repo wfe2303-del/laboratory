@@ -16,10 +16,9 @@
     body{margin:0;background:var(--bg);color:var(--text);font:14px/1.5 system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial}
     .wrap{max-width:1200px;margin:28px auto;padding:0 16px;position:relative}
     h1{font-size:22px;margin:0 0 8px}
-    .sub{color:var(--muted);margin-bottom:14px}
     .card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:16px;margin-bottom:16px}
     label{display:block;color:var(--muted);margin-bottom:6px}
-    select, input[type=text], input[type=file]{
+    select{
       width:100%; background:#fff; color:var(--text); border:1px solid var(--line);
       border-radius:var(--radius); padding:10px 12px; outline:none; height:var(--ctl-h);
     }
@@ -32,6 +31,7 @@
     .btn.acc{background:var(--accent);border-color:var(--accent);color:#fff}
     .btn.acc:hover{background:var(--accent-strong);border-color:var(--accent-strong)}
     .row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+    .row.fit{gap:8px}
     .hint{color:#64748b;font-size:12px}
     .err{color:#ef4444;font-family:ui-monospace,monospace;white-space:pre-wrap}
     .pill{display:inline-flex;gap:8px;align-items:center;padding:6px 10px;border:1px solid var(--line);border-radius:999px;color:var(--muted);background:#fff}
@@ -41,9 +41,11 @@
     table{width:100%;border-collapse:collapse;border:1px solid var(--line);overflow:auto;background:#fff;border-radius:12px}
     th,td{padding:8px 10px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}
     th{color:#0f172a;font-weight:600;background:#f1f5f9;position:sticky;top:0}
+    /* layout */
     .controls-grid{display:grid;gap:var(--gap);align-items:end}
-    @media(min-width:1000px){ .controls-grid{grid-template-columns:1.2fr 1.1fr 1fr} }
+    @media(min-width:1000px){ .controls-grid{grid-template-columns:1.3fr 1fr 1fr} }
     @media(min-width:640px) and (max-width:999px){ .controls-grid{grid-template-columns:1fr 1fr} }
+    /* gear / admin */
     .gear-btn{position:fixed;top:16px;right:16px;z-index:50;background:#fff;border:1px solid var(--line);border-radius:12px;padding:8px;cursor:pointer}
     .admin-overlay{position:fixed;inset:0;background:rgba(15,23,42,.28);backdrop-filter:saturate(140%) blur(2px);
       visibility:hidden; opacity:0; pointer-events:none; transition:.15s; z-index:60;}
@@ -58,6 +60,23 @@
     .panels{display:grid;gap:16px}
     @media(min-width:1100px){ .panels{grid-template-columns:1fr 1fr} }
     .panel-title{font-weight:700;margin:0 0 8px}
+    /* icon-only refresh button */
+    .icon-btn{
+      width:var(--ctl-h); height:var(--ctl-h); border:1px solid var(--line); border-radius:10px;
+      background:#fff; display:inline-flex; align-items:center; justify-content:center; cursor:pointer;
+    }
+    .icon-btn:hover{border-color:var(--accent-strong); box-shadow:0 0 0 3px rgba(96,165,250,.2)}
+    .icon-btn svg{width:18px;height:18px}
+    /* file picker (custom) */
+    .filectl{display:grid;grid-template-columns:auto 1fr;gap:10px;align-items:center}
+    .fname{
+      height:var(--ctl-h); line-height:var(--ctl-h); border:1px solid var(--line);
+      border-radius:var(--radius); padding:0 10px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+      background:#fff; color:#9aa4b2;
+    }
+    .fname.has{color:#0f172a}
+    /* make file row full width */
+    .col-file{grid-column:1 / -1}
   </style>
 </head>
 <body>
@@ -80,6 +99,7 @@
     <div class="panels">
       <!-- Panel A -->
       <section>
+        <h3 class="panel-title">패널 A</h3>
         <div class="card">
           <div class="controls-grid">
             <!-- 시트 선택 + 새로고침(아이콘만) -->
@@ -130,6 +150,7 @@
 
       <!-- Panel B -->
       <section>
+        <h3 class="panel-title">패널 B</h3>
         <div class="card">
           <div class="controls-grid">
             <div>
@@ -178,7 +199,6 @@
     </div>
   </div>
 
-
   <!-- 관리자 드로어(공용) -->
   <div id="adminOverlay" class="admin-overlay" aria-hidden="true"></div>
   <aside id="adminDrawer" class="admin-drawer" aria-hidden="true">
@@ -225,9 +245,9 @@ function hide(el){ el.classList.remove('open'); el.setAttribute('aria-hidden','t
 function last4Digits(s){ const d=String(s||'').replace(/[^\d]/g,''); return d.slice(-4); }
 function normalizeName(n){
   let s = String(n||'').trim();
-  s = s.replace(/[\s]*[\(\[\{（【][^)\]\}）】]*[\)\]\}）】]\s*$/,''); // 끝 괄호태그 제거
-  s = s.replace(/[/_\-\s]+$/,''); // 끝 구분자 제거
-  s = s.replace(/\s+/g,' ');     // 공백 정리
+  s = s.replace(/[\s]*[\(\[\{（【][^)\]\}）】]*[\)\]\}）】]\s*$/,'');
+  s = s.replace(/[/_\-\s]+$/,'');
+  s = s.replace(/\s+/g,' ');
   return s;
 }
 function isPaid(v){
@@ -257,13 +277,7 @@ function isPaid(v){
 
 /* ===== 설정 ===== */
 const READ_START_ROW  = 2;
-WRITE_START_ROW = 2; // <-- (typo guard) we'll redefine correctly below
-</script>
-<script>
-// Correct the constant (split to avoid accidental minifiers):
 const WRITE_START_ROW = 2;
-</script>
-<script>
 const CLIENT_ID = "18228268359-iifm4ck3j9kqj74eh1p90tco1k2mbpi0.apps.googleusercontent.com";
 
 /* ===== OAuth ===== */
@@ -427,6 +441,7 @@ async function runMain(sfx){
     const packs=loadPacks(); const pack=packs.find(x=>x.id===packSel.value); if(!pack) throw new Error('연결 정보를 찾을 수 없습니다.');
     const sheetId=pack.sheetId; const readCol=pack.readCol||'C';
 
+    // 1) 카톡 파싱
     const chatText = await readText(chatFile);
     const {events, joinedCount, leftCount} = parseChat(chatText);
 
@@ -457,7 +472,7 @@ async function runMain(sfx){
       }
     }
 
-    // 2) 읽기 시트
+    // 2) 읽기 시트 로스터
     const readNames = await getRange(sheetId, `${readSheet}!${readCol}${READ_START_ROW}:${readCol}`);
     const readRows = readNames.values || [];
     const rosterNames = [];
@@ -514,8 +529,6 @@ async function runMain(sfx){
     const writeRange = `${writeSheet}!D${WRITE_START_ROW}:S`;
     const wdata = await getRange(sheetId, writeRange);
     const rows = wdata.values || [];
-    const S_INDEX = 15;
-
     const paidRowsIdx = [];
     const paidNameCountN = new Map();
     for(let i=0;i<rows.length;i++){
@@ -536,7 +549,6 @@ async function runMain(sfx){
       const nameN   = normalizeName(nameRaw);
       const phone4  = last4Digits(r[1] ?? '');    // E
       if(!nameN) continue;
-
       if(!attendingSetN.has(nameN)) continue;
 
       const set = activeDigitsByName.get(nameN) || new Set();
@@ -601,11 +613,11 @@ function runDemo(sfx){
   const chatText=[
     '2025.08.10 오후 8:01 - 권지혁/3788님이 입장하셨습니다',
     '2025.08.10 오후 8:03 - 김예은님이 입장하셨습니다',
-    '2025.08.10 오후 8:04 - 임규리-4593님이 들어왔습니다',
+    '2025.08.10 오후 8:04 - 임규리-1234님이 들어왔습니다',
     '2025.08.10 오후 8:05 - 이원철님을 내보냈습니다.',
     '2025.08.10 오후 8:06 - 권지혁/3788님이 나갔습니다.',
-    '2025.08.10 오후 8:07 - 황현하 1472님이 입장했습니다',
-    '2025.08.10 오후 8:08 - 이정백2072님이 입장하셨습니다'
+    '2025.08.10 오후 8:07 - 황현하 1122님이 입장했습니다',
+    '2025.08.10 오후 8:08 - 이정백님이 입장하셨습니다'
   ].join('\n');
   const {events}=parseChat(chatText);
   const NAME_ONLY_SENTINEL='__NAMEONLY__';
@@ -633,6 +645,19 @@ function runDemo(sfx){
   table('데모 퇴장자(최종)', leaveRows);
 }
 
+/* ===== 파일 선택 바인딩 ===== */
+function bindFilePicker(sfx){
+  const pickBtn=byPanel('pickFile',sfx), fileInput=byPanel('chatFile',sfx), nameSpan=byPanel('fileName',sfx);
+  if(pickBtn && fileInput && nameSpan){
+    pickBtn.addEventListener('click',()=>fileInput.click());
+    fileInput.addEventListener('change',()=>{
+      const f=fileInput.files?.[0];
+      nameSpan.textContent = f? f.name : '선택된 파일 없음';
+      nameSpan.classList.toggle('has', !!f);
+    });
+  }
+}
+
 /* ===== 초기화 ===== */
 window.addEventListener('load', ()=>{ if(window.google?.accounts?.oauth2) initAuth(); });
 document.addEventListener('DOMContentLoaded', ()=>{
@@ -656,12 +681,14 @@ document.addEventListener('DOMContentLoaded', ()=>{
   on('refreshMeta','click', ()=>refreshMeta('A'), 'A');
   on('runBtn','click', ()=>runMain('A'), 'A');
   on('demoBtn','click', ()=>runDemo('A'), 'A');
+  bindFilePicker('A');
 
   // 패널 B
   on('sheetPackSelect','change', ()=>onPackChanged('B'), 'B');
   on('refreshMeta','click', ()=>refreshMeta('B'), 'B');
   on('runBtn','click', ()=>runMain('B'), 'B');
   on('demoBtn','click', ()=>runDemo('B'), 'B');
+  bindFilePicker('B');
 
   // 초기 셀렉트
   populatePacks('A');
@@ -670,5 +697,3 @@ document.addEventListener('DOMContentLoaded', ()=>{
 </script>
 </body>
 </html>
-
-
