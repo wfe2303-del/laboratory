@@ -3,15 +3,13 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>클래스어라운드 · 카카오톡 입장자 체크봇 (Sheets API • 안정판)</title>
+  <title>클래스어라운드 · 카카오톡 입장자 체크봇 (안정판)</title>
   <!-- Google Identity Services -->
   <script src="https://accounts.google.com/gsi/client" async defer></script>
   <style>
-    :root{
-      --bg:#fff; --card:#fff; --surface:#f8fafc; --line:#e5e7eb; --text:#0f172a; --muted:#64748b;
-      --accent:#60a5fa; --accent-strong:#3b82f6; --ok:#22c55e; --warn:#f59e0b; --bad:#ef4444;
-      --radius:12px; --ctl-h:42px; --gap:12px;
-    }
+    :root{--bg:#fff;--card:#fff;--surface:#f8fafc;--line:#e5e7eb;--text:#0f172a;--muted:#64748b;
+      --accent:#60a5fa;--accent-strong:#3b82f6;--ok:#22c55e;--warn:#f59e0b;--bad:#ef4444;
+      --radius:12px;--ctl-h:42px;--gap:12px}
     *{box-sizing:border-box}
     body{margin:0;background:var(--bg);color:var(--text);font:14px/1.5 system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial}
     .wrap{max-width:1100px;margin:28px auto;padding:0 16px;position:relative}
@@ -19,16 +17,10 @@
     .sub{color:var(--muted);margin-bottom:14px}
     .card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:16px;margin-bottom:16px}
     label{display:block;color:var(--muted);margin-bottom:6px}
-    select, input[type=text], input[type=file]{
-      width:100%; background:#fff; color:var(--text); border:1px solid var(--line);
-      border-radius:var(--radius); padding:10px 12px; outline:none; height:var(--ctl-h);
-    }
-    .btn{
-      appearance:none; border:1px solid var(--line); background:#fff; color:var(--text);
-      padding:10px 14px; border-radius:var(--radius); cursor:pointer; transition:all .15s ease;
-      height:var(--ctl-h); display:inline-flex; align-items:center; justify-content:center;
-      user-select:none;
-    }
+    select,input[type=text],input[type=file]{width:100%;background:#fff;color:var(--text);border:1px solid var(--line);
+      border-radius:var(--radius);padding:10px 12px;outline:none;height:var(--ctl-h)}
+    .btn{appearance:none;border:1px solid var(--line);background:#fff;color:var(--text);padding:10px 14px;border-radius:var(--radius);
+      cursor:pointer;transition:all .15s ease;height:var(--ctl-h);display:inline-flex;align-items:center;justify-content:center;user-select:none}
     .btn.acc{background:var(--accent);border-color:var(--accent);color:#fff}
     .btn:hover{border-color:var(--accent-strong);box-shadow:0 0 0 3px rgba(96,165,250,.2)}
     .row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
@@ -42,38 +34,42 @@
     th,td{padding:8px 10px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}
     th{color:#0f172a;font-weight:600;background:#f1f5f9;position:sticky;top:0}
     .controls-grid{display:grid;gap:var(--gap);align-items:end}
-    @media(min-width:1000px){ .controls-grid{grid-template-columns:1.2fr 1.1fr 1fr} }
-    @media(min-width:640px) and (max-width:999px){ .controls-grid{grid-template-columns:1fr 1fr} }
+    @media(min-width:1000px){.controls-grid{grid-template-columns:1.2fr 1.1fr 1fr}}
+    @media(min-width:640px) and (max-width:999px){.controls-grid{grid-template-columns:1fr 1fr}}
 
-    /* ===== Admin Drawer ===== */
+    /* Admin Drawer */
     .gear-btn{position:fixed;top:16px;right:16px;z-index:100;background:#fff;border:1px solid var(--line);border-radius:12px;padding:8px;cursor:pointer}
     .gear-btn:hover{border-color:var(--accent-strong);box-shadow:0 0 0 3px rgba(96,165,250,.2)}
-    .admin-overlay{position:fixed;inset:0;background:rgba(15,23,42,.28);
-      backdrop-filter:saturate(140%) blur(2px);display:none;z-index:90;pointer-events:none}
-    .admin-drawer{position:fixed;top:0;right:0;height:100%;width:520px;max-width:92vw;background:#fff;
-      border-left:1px solid var(--line);box-shadow:-8px 0 24px rgba(0,0,0,.08);
-      padding:16px 16px 24px;display:none;flex-direction:column;gap:12px;z-index:95}
+    .admin-overlay{position:fixed;inset:0;background:rgba(15,23,42,.28);backdrop-filter:saturate(140%) blur(2px);
+      display:none;z-index:90;pointer-events:none}
+    .admin-drawer{position:fixed;top:0;right:0;height:100%;width:520px;max-width:92vw;background:#fff;border-left:1px solid var(--line);
+      box-shadow:-8px 0 24px rgba(0,0,0,.08);padding:16px 16px 24px;display:none;flex-direction:column;gap:12px;z-index:95}
     .admin-head{display:flex;align-items:center;justify-content:space-between}
     .x-btn{appearance:none;border:1px solid var(--line);background:#fff;border-radius:10px;padding:6px 8px;cursor:pointer}
     .x-btn:hover{border-color:#94a3b8}
     .admin-grid{display:grid;gap:10px}
-    @media(min-width:640px){ .admin-grid{grid-template-columns:1.3fr .8fr .5fr auto} }
+    @media(min-width:640px){.admin-grid{grid-template-columns:1.3fr .8fr .5fr auto}}
     .table-wrap{border:1px solid var(--line);border-radius:12px;overflow:hidden}
-    .dbg{position:absolute;right:12px;top:12px;color:#64748b;font-size:11px}
+    .dbg{font-size:12px;color:#0f172a}
+    .js-off{display:none}
+    noscript .js-off{display:block;color:#ef4444;padding:12px}
   </style>
 </head>
 <body>
+  <!-- JS 동작 확인 배너 -->
+  <div class="wrap">
+    <div class="card js-off">이 페이지는 자바스크립트가 필요합니다. 브라우저에서 JS를 허용해 주세요.</div>
+  </div>
+
   <!-- Settings Button -->
-  <button class="gear-btn" title="관리자 설정" data-click="open-admin">
-    ⚙
-  </button>
+  <button class="gear-btn" title="관리자 설정" data-click="open-admin" id="btnSettings">⚙</button>
 
   <!-- Admin Drawer -->
   <div id="adminOverlay" class="admin-overlay" data-click="close-admin"></div>
   <aside id="adminDrawer" class="admin-drawer" aria-hidden="true">
     <div class="admin-head">
       <h3 style="margin:0">관리자 설정</h3>
-      <button class="x-btn" data-click="close-admin">닫기</button>
+      <button class="x-btn" data-click="close-admin" id="btnCloseAdmin">닫기</button>
     </div>
 
     <div class="card" style="margin:0">
@@ -82,7 +78,7 @@
         <input id="admSheetUrl" type="text" placeholder="스프레드시트 URL 또는 ID" />
         <input id="admLabel" type="text" placeholder="표시 이름(선택)" />
         <input id="admReadCol" type="text" placeholder="읽을 열 (예: C)" />
-        <button class="btn" data-click="adm-add">연결 추가</button>
+        <button class="btn" data-click="adm-add" id="btnAdmAdd">연결 추가</button>
       </div>
       <div id="admErr" class="err" style="margin-top:6px"></div>
     </div>
@@ -98,9 +94,9 @@
         <tbody id="admPackList"><tr><td colspan="4" style="color:#64748b">연결이 없습니다.</td></tr></tbody>
       </table>
       <div class="row" style="padding:10px">
-        <button class="btn" data-click="adm-refresh">시트 목록 새로고침</button>
-        <button class="btn" data-click="adm-del">선택 삭제</button>
-        <button class="btn" data-click="adm-clear">전체 삭제</button>
+        <button class="btn" data-click="adm-refresh" id="btnAdmRefresh">시트 목록 새로고침</button>
+        <button class="btn" data-click="adm-del" id="btnAdmDel">선택 삭제</button>
+        <button class="btn" data-click="adm-clear" id="btnAdmClear">전체 삭제</button>
       </div>
       <div class="hint" id="admMetaHint" style="padding:0 10px 10px"></div>
     </div>
@@ -117,12 +113,12 @@
     <!-- 인증 -->
     <div class="card">
       <div class="row">
-        <button class="btn acc" data-click="login">Google 로그인</button>
-        <button class="btn" data-click="logout">로그아웃</button>
+        <button class="btn acc" data-click="login" id="btnLogin">Google 로그인</button>
+        <button class="btn" data-click="logout" id="btnLogout">로그아웃</button>
         <span id="authState" class="hint">미로그인</span>
+        <span class="hint">· JS 상태: <b id="jsState">초기화 중…</b></span>
       </div>
       <div id="authErr" class="err" style="margin-top:6px"></div>
-      <div class="dbg" id="dbgAuth"></div>
     </div>
 
     <!-- 연결 선택 + 실행 -->
@@ -132,7 +128,7 @@
           <label>스프레드시트 연결</label>
           <div class="row">
             <select id="sheetPackSelect" style="min-width:260px"></select>
-            <button class="btn" data-click="refresh-meta">시트 목록 새로고침</button>
+            <button class="btn" data-click="refresh-meta" id="btnRefreshMeta">시트 목록 새로고침</button>
           </div>
           <div class="hint">읽기 시작 행: <b id="readStartHint">2</b> · 읽을 열: <b id="readColHint">-</b> · 공유 시작 행: <b id="writeStartHint">2</b></div>
         </div>
@@ -156,8 +152,8 @@
           <input id="previewOnly" type="checkbox" />
           <span class="hint">체크만(쓰기 금지)</span>
         </label>
-        <button class="btn acc" data-click="run">실행</button>
-        <button class="btn" data-click="demo">데모</button>
+        <button class="btn acc" data-click="run" id="btnRun">실행</button>
+        <button class="btn" data-click="demo" id="btnDemo">데모</button>
         <span id="pills" class="row"></span>
       </div>
       <div id="err" class="err" style="margin-top:8px"></div>
@@ -167,61 +163,42 @@
   </div>
 
 <script>
-/* ===== 전역 에러를 화면에 표기 (침묵크래시 방지) ===== */
+/* ========= 전역 에러 표기 ========= */
 (function(){
   const out=(m,src,l,c,e)=>{ const el=document.getElementById('err'); const st=e?.stack?'\n'+e.stack:''; if(el) el.textContent='오류: '+m+(src?`\n${src}:${l}:${c}`:'')+st; };
   window.addEventListener('error', e=>out(e.message,e.filename,e.lineno,e.colno,e.error));
   window.addEventListener('unhandledrejection', e=>{ const r=e.reason||{}; out(r.message||String(r)); });
 })();
 
-/* ===== 상수/유틸 ===== */
-const READ_START_ROW  = 2;
-const WRITE_START_ROW = 2;
-const CLIENT_ID = "18228268359-iifm4ck3j9kqj74eh1p90tco1k2mbpi0.apps.googleusercontent.com";
-const $$ = id=>document.getElementById(id);
-const txt = (id,v)=>{ const el=$$(id); if(el) el.textContent=v??''; };
+/* ========= 유틸 ========= */
+const $$=id=>document.getElementById(id);
+const txt=(id,v)=>{ const el=$$(id); if(el) el.textContent=v??''; };
 if(!crypto.randomUUID){ crypto.randomUUID=()=>('xxxxxxxyxxxx').replace(/[xy]/g,c=>(c==='x'?((Math.random()*16)|0):((Math.random()*4)|8)).toString(16)); }
-function normalizeName(n){
-  let s=String(n||'').trim();
-  s=s.replace(/[\s]*[\(\[\{（【][^)\]\}）】]*[\)\]\}）】]\s*$/,''); // 괄호부 제거
-  s=s.replace(/[/_\-\s]+$/,''); // 끝 구분자 제거
-  s=s.replace(/\s+/g,' ');      // 공백 정리
-  return s;
-}
-const last4 = s=>String(s||'').replace(/[^\d]/g,'').slice(-4);
-function isPaid(v){
-  const s=String(v||'').trim().toLowerCase(), ns=s.replace(/\s/g,'');
-  if(!s) return false; if(/미결제|미완료|취소|환불/.test(ns)) return false;
-  if(/\b(no|false|x)\b/.test(s)) return false;
-  if(ns==='결제완료') return true;
-  if(/결제/.test(s)&&/(완료|확인|됨|ok)/.test(s)) return true;
-  if(/입금|납부|paid|완료|확인|ok|done|true|yes|\by\b|\bo\b|✓|✔|✅/.test(s)) return true;
-  return false;
-}
+function normalizeName(n){ let s=String(n||'').trim(); s=s.replace(/[\s]*[\(\[\{（【][^)\]\}）】]*[\)\]\}）】]\s*$/,''); s=s.replace(/[/_\-\s]+$/,''); s=s.replace(/\s+/g,' '); return s; }
+const last4=s=>String(s||'').replace(/[^\d]/g,'').slice(-4);
+function isPaid(v){ const s=String(v||'').trim().toLowerCase(), ns=s.replace(/\s/g,''); if(!s) return false; if(/미결제|미완료|취소|환불/.test(ns)) return false; if(/\b(no|false|x)\b/.test(s)) return false; if(ns==='결제완료') return true; if(/결제/.test(s)&&/(완료|확인|됨|ok)/.test(s)) return true; if(/입금|납부|paid|완료|확인|ok|done|true|yes|\by\b|\bo\b|✓|✔|✅/.test(s)) return true; return false; }
 
-/* ===== OAuth ===== */
+/* ========= OAuth ========= */
+const CLIENT_ID="18228268359-iifm4ck3j9kqj74eh1p90tco1k2mbpi0.apps.googleusercontent.com";
 let accessToken=null, tokenClient=null;
 function initAuth(){
   try{
     if(!window.google?.accounts?.oauth2){ txt('authErr','GIS 로드 실패'); return; }
     tokenClient = google.accounts.oauth2.initTokenClient({
-      client_id: CLIENT_ID,
-      scope: 'https://www.googleapis.com/auth/spreadsheets',
-      prompt: '',
-      callback: r=>{ accessToken=r.access_token; txt('authState','로그인 완료'); txt('authErr',''); $$('#dbgAuth').textContent='token ok'; },
-      error_callback: e=> txt('authErr','OAuth 오류: '+(e?.error||e?.type||JSON.stringify(e)))
+      client_id: CLIENT_ID, scope:'https://www.googleapis.com/auth/spreadsheets',
+      prompt:'', callback:r=>{ accessToken=r.access_token; txt('authState','로그인 완료'); txt('authErr',''); },
+      error_callback:e=>txt('authErr','OAuth 오류: '+(e?.error||e?.type||JSON.stringify(e)))
     });
-    $$('#dbgAuth').textContent='client ready';
   }catch(e){ txt('authErr','초기화 오류: '+(e?.message||e)); }
 }
 function requestAccess(){ tokenClient? tokenClient.requestAccessToken({prompt:'consent'}) : initAuth(); }
-function revokeAccess(){ if(accessToken){ google.accounts.oauth2.revoke(accessToken,()=>{ accessToken=null; txt('authState','미로그인'); $$('#dbgAuth').textContent='revoked'; }); } }
+function revokeAccess(){ if(accessToken){ google.accounts.oauth2.revoke(accessToken,()=>{ accessToken=null; txt('authState','미로그인'); }); } }
 function requireAuth(){ if(!accessToken) throw new Error('먼저 Google 로그인하세요.'); }
 
-/* ===== Sheets REST ===== */
+/* ========= Sheets REST ========= */
 async function gFetch(url, init){
   requireAuth();
-  const res = await fetch(url, { ...(init||{}), headers:{ Authorization:`Bearer ${accessToken}`, 'Content-Type':'application/json', ...(init?.headers||{}) }});
+  const res=await fetch(url,{...(init||{}),headers:{Authorization:`Bearer ${accessToken}`,'Content-Type':'application/json',...(init?.headers||{})}});
   if(!res.ok){ const t=await res.text(); throw new Error(t||('HTTP '+res.status)); }
   return res.json();
 }
@@ -229,53 +206,44 @@ async function listSheets(id){
   const u=`https://sheets.googleapis.com/v4/spreadsheets/${encodeURIComponent(id)}?fields=sheets(properties(title))`;
   const d=await gFetch(u); return (d.sheets||[]).map(s=>s.properties.title);
 }
-async function getRange(id, a1){
+async function getRange(id,a1){
   const u=`https://sheets.googleapis.com/v4/spreadsheets/${encodeURIComponent(id)}/values/${encodeURIComponent(a1)}`;
   return await gFetch(u);
 }
-async function batchUpdateValues(id, data){
+async function batchUpdateValues(id,data){
   const u=`https://sheets.googleapis.com/v4/spreadsheets/${encodeURIComponent(id)}/values:batchUpdate`;
   return await gFetch(u,{method:'POST',body:JSON.stringify({valueInputOption:'USER_ENTERED',data})});
 }
 
-/* ===== Admin 저장소 ===== */
-const PACKS_KEY='ca_gsapi_sources_v17'; // 새 키(구 쓰레기 상태 무효화)
-const loadPacks=()=>{ try{return JSON.parse(localStorage.getItem(PACKS_KEY)||'[]');}catch(e){return [];} };
+/* ========= 저장소 ========= */
+const READ_START_ROW=2, WRITE_START_ROW=2;
+const PACKS_KEY='ca_gsapi_sources_v18';
+const loadPacks=()=>{ try{return JSON.parse(localStorage.getItem(PACKS_KEY)||'[]');}catch(_){return [];} };
 const savePacks=p=>localStorage.setItem(PACKS_KEY,JSON.stringify(p));
 const addPack=p=>{ const a=loadPacks(); a.push(p); savePacks(a); };
 const removePack=id=>savePacks(loadPacks().filter(p=>p.id!==id));
-function extractSheetId(input){
-  const s=String(input||'').trim();
-  const m=s.match(/\/spreadsheets\/d\/([a-zA-Z0-9-_]+)/);
-  if(m) return m[1];
-  return s;
-}
-function sanitizeCol(c){
-  const s=String(c||'').trim().toUpperCase().replace(/\s|열/g,''); if(!s) return null;
-  if(/^[A-Z]+$/.test(s)) return s;
-  if(/^\d+$/.test(s)){ let n=parseInt(s,10), r=''; while(n>0){ const q=(n-1)%26; r=String.fromCharCode(65+q)+r; n=Math.floor((n-1)/26); } return r; }
-  return null;
-}
+function extractSheetId(input){ const s=String(input||'').trim(); const m=s.match(/\/spreadsheets\/d\/([a-zA-Z0-9-_]+)/); return m?m[1]:s; }
+function sanitizeCol(c){ const s=String(c||'').trim().toUpperCase().replace(/\s|열/g,''); if(!s) return null; if(/^[A-Z]+$/.test(s)) return s; if(/^\d+$/.test(s)){ let n=parseInt(s,10), r=''; while(n>0){ const q=(n-1)%26; r=String.fromCharCode(65+q)+r; n=Math.floor((n-1)/26); } return r;} return null; }
 
-/* ===== Admin 로직 ===== */
+/* ========= Admin ========= */
 async function admAddPack(){
   try{
     txt('admErr','');
-    const id = extractSheetId($$('admSheetUrl').value); if(!id) throw new Error('스프레드시트 URL 또는 ID를 입력하세요.');
-    const label = ($$('admLabel').value||'시트 '+id.slice(0,6)+'…');
-    const col = sanitizeCol($$('admReadCol').value||'C') || 'C';
-    const sheets = await listSheets(id);
-    addPack({ id: crypto.randomUUID(), label, sheetId:id, readCol:col, sheets, updatedAt:new Date().toISOString() });
+    const id=extractSheetId($$('admSheetUrl').value); if(!id) throw new Error('스프레드시트 URL 또는 ID를 입력하세요.');
+    const label=($$('admLabel').value||'시트 '+id.slice(0,6)+'…');
+    const col=sanitizeCol($$('admReadCol').value||'C')||'C';
+    const sheets=await listSheets(id);
+    addPack({id:crypto.randomUUID(),label,sheetId:id,readCol:col,sheets,updatedAt:new Date().toISOString()});
     renderPackList(); populatePacks();
     $$('#admSheetUrl').value=''; $$('#admLabel').value=''; $$('#admReadCol').value='';
-  }catch(e){ txt('admErr', e?.message||String(e)); }
+  }catch(e){ txt('admErr',e?.message||String(e)); }
 }
 function admDelPack(){ const pid=$$('sheetPackSelect').value; if(!pid) return; removePack(pid); renderPackList(); populatePacks(); }
 function admClearAll(){ if(confirm('모든 연결을 삭제할까요?')){ localStorage.removeItem(PACKS_KEY); renderPackList(); populatePacks(); } }
 async function admRefresh(){ try{ const sel=$$('sheetPackSelect'); if(!sel||!sel.value) return;
   const packs=loadPacks(); const idx=packs.findIndex(p=>p.id===sel.value); if(idx<0) return;
-  packs[idx].sheets = await listSheets(packs[idx].sheetId); savePacks(packs); onPackChanged(); renderPackList();
-}catch(e){ txt('admErr', e?.message||String(e)); } }
+  packs[idx].sheets=await listSheets(packs[idx].sheetId); savePacks(packs); onPackChanged(); renderPackList();
+}catch(e){ txt('admErr',e?.message||String(e)); } }
 function renderPackList(){
   const packs=loadPacks(), tb=$$('admPackList'); tb.innerHTML='';
   if(!packs.length){ tb.innerHTML='<tr><td colspan="4" style="color:#64748b">연결이 없습니다.</td></tr>'; $$('#admMetaHint').textContent=''; return; }
@@ -285,10 +253,10 @@ function renderPackList(){
       <td><button class="btn" data-click="adm-del-by" data-id="${p.id}">삭제</button></td>`;
     tb.appendChild(tr);
   });
-  $$('#admMetaHint').textContent = `총 ${packs.length}개 연결 · ${new Date().toLocaleString()} 기준`;
+  $$('#admMetaHint').textContent=`총 ${packs.length}개 연결 · ${new Date().toLocaleString()} 기준`;
 }
 
-/* ===== 메인 드롭다운 ===== */
+/* ========= 메인 드롭다운 ========= */
 function populatePacks(){
   const packs=loadPacks(), sel=$$('sheetPackSelect'); if(!sel) return;
   sel.innerHTML='';
@@ -309,11 +277,11 @@ function onPackChanged(){
   (p.sheets||[]).forEach(t=>{ rSel.appendChild(new Option(t,t)); wSel.appendChild(new Option(t,t)); });
 }
 
-/* ===== 카톡 파서 ===== */
+/* ========= 카톡 파서 ========= */
 const JOIN_PAT  = /(.*?)님이\s*(입장하셨습니다|들어왔습니다|입장했습니다|들어오셨습니다)[\s\.\!]*$/;
 const LEAVE_PAT = /(.*?)님이\s*(퇴장하셨습니다|나갔습니다|퇴장했습니다|나가셨습니다|내보냈습니다|내보냈어요)[\s\.\!]*$/;
-const KICK_PAT1 = /.+?님이\s+(.+?)님을\s*(내보냈습니다|내보냈어요)[\s\.\!]*$/; // "관리자님이 홍길동님을 내보냈습니다"
-const KICK_PAT2 = /(.+?)님을\s*(내보냈습니다|내보냈어요)[\s\.\!]*$/;          // "홍길동님을 내보냈습니다"
+const KICK_PAT1 = /.+?님이\s+(.+?)님을\s*(내보냈습니다|내보냈어요)[\s\.\!]*$/;
+const KICK_PAT2 = /(.+?)님을\s*(내보냈습니다|내보냈어요)[\s\.\!]*$/;
 
 function splitNickname(nick){
   const raw=String(nick||'').trim(); if(!raw) return null;
@@ -326,7 +294,7 @@ function splitNickname(nick){
   return {name, digits};
 }
 
-/* ===== 실행 ===== */
+/* ========= 메인 실행 ========= */
 async function runMain(){
   try{
     txt('err',''); const results=$$('results'); if(results) results.innerHTML='';
@@ -338,46 +306,28 @@ async function runMain(){
     const writeSheet=$$('writeSheetSelect').value; if(!writeSheet) throw new Error('공유 시트를 선택하세요.');
     const sheetId=pack.sheetId; const readCol=pack.readCol||'C';
 
-    // 1) 카톡 파싱 (입장/퇴장/강퇴)
+    // 1) 카톡 파싱
     const chatText = await chatFile.text();
     const lines = chatText.split(/\r?\n/);
     const events=[]; let joinCnt=0, leaveCnt=0;
     for(const raw of lines){
       const line=raw.trim(); if(!line) continue;
-
-      let m=line.match(JOIN_PAT);
-      if(m){ events.push({type:'join', nick:m[1].trim(), raw:line}); joinCnt++; continue; }
-
-      m=line.match(LEAVE_PAT);
-      if(m){ events.push({type:'leave', nick:m[1].trim(), raw:line}); leaveCnt++; continue; }
-
-      m=line.match(KICK_PAT1);
-      if(m){ events.push({type:'leave', nick:m[1].trim(), raw:line}); leaveCnt++; continue; }
-
-      m=line.match(KICK_PAT2);
-      if(m){ events.push({type:'leave', nick:m[1].trim(), raw:line}); leaveCnt++; continue; }
+      let m=line.match(JOIN_PAT);  if(m){ events.push({type:'join',  nick:m[1].trim(), raw:line}); joinCnt++; continue; }
+      m=line.match(LEAVE_PAT);     if(m){ events.push({type:'leave', nick=m[1].trim(), raw:line}); leaveCnt++; continue; }
+      m=line.match(KICK_PAT1);     if(m){ events.push({type:'leave', nick=m[1].trim(), raw:line}); leaveCnt++; continue; }
+      m=line.match(KICK_PAT2);     if(m){ events.push({type:'leave', nick=m[1].trim(), raw:line}); leaveCnt++; continue; }
     }
 
     const NAME_ONLY='__NAMEONLY__';
     const active = new Map();   // nameN -> Set(last4 or NAME_ONLY)
-    const leftEver = new Set(); // leave/강퇴 로그 등장 이름
+    const leftEver = new Set();
     const ensure = n=>{ if(!active.has(n)) active.set(n,new Set()); return active.get(n); };
 
     for(const ev of events){
       const s=splitNickname(ev.nick); if(!s) continue;
       const nN = s.name;
-      if(ev.type==='join'){
-        const set=ensure(nN);
-        if(s.digits) set.add(s.digits); else set.add(NAME_ONLY);
-      }else{
-        leftEver.add(nN);
-        if(active.has(nN)){
-          const set=active.get(nN);
-          if(s.digits){ set.delete(s.digits); set.delete(NAME_ONLY); }
-          else{ set.clear(); } // 숫자 미표기 퇴장/강퇴 → 동일 이름 세션 종료
-          if(set.size===0) active.delete(nN);
-        }
-      }
+      if(ev.type==='join'){ const set=ensure(nN); if(s.digits) set.add(s.digits); else set.add(NAME_ONLY); }
+      else{ leftEver.add(nN); if(active.has(nN)){ const set=active.get(nN); if(s.digits){ set.delete(s.digits); set.delete(NAME_ONLY); } else { set.clear(); } if(set.size===0) active.delete(nN); } }
     }
     const leftFinal = [...leftEver].filter(nN => !active.has(nN) || active.get(nN).size===0);
 
@@ -415,7 +365,6 @@ async function runMain(){
     const rows = w.values||[];
     const updates=[]; const unresolved=[];
 
-    // 결제완료 인덱스 수집 + 이름 중복 수
     const paidIdx=[]; const paidNameCount = new Map();
     for(let i=0;i<rows.length;i++){
       const r=rows[i]||[]; if(!isPaid(r[5])) continue;           // I열
@@ -431,11 +380,8 @@ async function runMain(){
       const phone4  = last4(r[1]||'');          // E
       if(!nameN) continue;
 
-      // 퇴장 확정자는 제외
-      if(leftFinal.includes(nameN)) continue;
-
-      // 현재 입장 중이 아니라면 기록하지 않음
-      if(!active.has(nameN)) continue;
+      if(leftFinal.includes(nameN)) continue;       // 퇴장자 제외
+      if(!active.has(nameN)) continue;              // 현재 미입장
 
       const set = active.get(nameN);
       const dupInPaid = (paidNameCount.get(nameN)||0) > 1;
@@ -445,7 +391,7 @@ async function runMain(){
         if(phone4 && set.has(phone4)) okay=true;
         else unresolved.push([nameRaw,'공유시트 동명이인 + 입장로그 번호없음/불일치']);
       }else{
-        okay = set.size>0; // 번호없음 입장도 허용
+        okay = set.size>0; // 번호없음 입장 허용
       }
 
       if(okay){
@@ -454,19 +400,19 @@ async function runMain(){
       }
     }
 
-    if(updates.length && !previewOnly) await batchUpdateValues(sheetId, updates);
+    if(updates.length && !($$('#previewOnly')?.checked)) await batchUpdateValues(sheetId, updates);
 
-    // 상단 배지
+    // 배지
     const pills=$$('pills'); if(pills){ pills.innerHTML='';
       const mk=(t,c)=>{ const s=document.createElement('span'); s.className='pill '+c; s.textContent=t; return s; };
       pills.appendChild(mk(`입장로그 ${joinCnt}`,'ok'));
       pills.appendChild(mk(`퇴장/강퇴로그 ${leaveCnt}`,'bad'));
       pills.appendChild(mk(`현재 입장 ${active.size}`,'warn'));
       pills.appendChild(mk(`최종 퇴장 ${leftFinal.length}`,'bad'));
-      if(previewOnly) pills.appendChild(mk('체크만','warn'));
+      if($$('#previewOnly')?.checked) pills.appendChild(mk('체크만','warn'));
     }
 
-    // 렌더 테이블
+    // 표
     const results=$$('results');
     function table(title, heads, rows){
       const wrap=document.createElement('div'); wrap.className='card';
@@ -483,35 +429,24 @@ async function runMain(){
     table('명단 외 입장자', ['name/last4 or (번호없음)'], extras);
     table('미확인 목록(동명이인/번호 문제)', ['name','reason'], unresolved);
 
-    // 퇴장자 명단 (로스터 내)
-    const leftRoster = leftFinal.filter(nN=>rosterSetN.has(nN)).map(nN=>{
-      const idx = rosterN.indexOf(nN);
-      return [roster[idx] || nN];
-    });
+    const rosterSetNN = new Set(rosterN);
+    const leftRoster = leftFinal.filter(nN=>rosterSetNN.has(nN)).map(nN=>[roster[rosterN.indexOf(nN)]||nN]);
     table('퇴장자 명단(로스터 기준)', ['name'], leftRoster);
 
-    // 명단 외 퇴장자
-    const leftExtra = leftFinal.filter(nN=>!rosterSetN.has(nN)).map(nN=>[nN]);
+    const leftExtra = leftFinal.filter(nN=>!rosterSetNN.has(nN)).map(nN=>[nN]);
     table('명단 외 퇴장자', ['name'], leftExtra);
 
-    // 갱신 결과/미리보기
-    table((previewOnly?'예상 갱신 결과(체크만)':'공유 시트 갱신 결과'),
+    table($$('#previewOnly')?.checked?'예상 갱신 결과(체크만)':'공유 시트 갱신 결과',
           ['updated_cells'], updates.map(u=>[u.range+' ← 입장']));
 
   }catch(e){ txt('err','오류: '+(e?.message||e)); console.error(e); }
 }
 
-/* ===== 관리자 드로어 열고/닫기 ===== */
-function openAdmin(){
-  const ov=$$('#adminOverlay'), dr=$$('#adminDrawer');
-  if(ov&&dr){ ov.style.display='block'; ov.style.pointerEvents='auto'; dr.style.display='flex'; dr.setAttribute('aria-hidden','false'); renderPackList(); }
-}
-function closeAdmin(){
-  const ov=$$('#adminOverlay'), dr=$$('#adminDrawer');
-  if(ov&&dr){ ov.style.display='none'; ov.style.pointerEvents='none'; dr.style.display='none'; dr.setAttribute('aria-hidden','true'); }
-}
+/* ========= 드로어 ========= */
+function openAdmin(){ const ov=$$('adminOverlay'), dr=$$('adminDrawer'); if(ov&&dr){ ov.style.display='block'; ov.style.pointerEvents='auto'; dr.style.display='flex'; dr.setAttribute('aria-hidden','false'); renderPackList(); } }
+function closeAdmin(){ const ov=$$('adminOverlay'), dr=$$('adminDrawer'); if(ov&&dr){ ov.style.display='none'; ov.style.pointerEvents='none'; dr.style.display='none'; dr.setAttribute('aria-hidden','true'); } }
 
-/* ===== 이벤트 위임: 캡처 + 버블 모두 ===== */
+/* ========= 이벤트: 1) 전역 위임(캡처+버블) ========= */
 function handleClick(e){
   const node = e.target.closest?.('[data-click]');
   if(!node) return;
@@ -532,19 +467,64 @@ function handleClick(e){
 
     if(act==='run') return runMain();
     if(act==='demo') return runDemo();
-  }catch(err){
-    console.error(err);
-    txt('err','오류: '+(err?.message||err));
-  }
+  }catch(err){ console.error(err); txt('err','오류: '+(err?.message||err)); }
 }
-document.addEventListener('click', handleClick, true); // 캡처
-document.addEventListener('click', handleClick);       // 버블
+document.addEventListener('click', handleClick, true);
+document.addEventListener('click', handleClick);
 
-/* ===== 초기화 ===== */
+/* ========= 이벤트: 2) 직접 바인딩 ========= */
+function bindDirect(){
+  const map = {
+    btnSettings:'open-admin', btnCloseAdmin:'close-admin',
+    btnAdmAdd:'adm-add', btnAdmRefresh:'adm-refresh', btnAdmDel:'adm-del', btnAdmClear:'adm-clear',
+    btnRefreshMeta:'refresh-meta',
+    btnLogin:'login', btnLogout:'logout', btnRun:'run', btnDemo:'demo'
+  };
+  Object.entries(map).forEach(([id,act])=>{
+    const el=$$(id); if(!el) return;
+    el.addEventListener('click', ev=>{ ev.preventDefault(); const fake={target:el}; handleClick(fake); }, {passive:false});
+    // 3) 마지막 안전장치: onclick 프로퍼티 주입
+    el.onclick = (ev)=>{ ev && ev.preventDefault && ev.preventDefault(); const fake={target:el}; handleClick(fake); return false; };
+  });
+}
+
+/* ========= 데모 ========= */
+function runDemo(){
+  txt('err',''); const results=$$('results'); if(results) results.innerHTML='';
+  const sample = [
+    '2025.08.10 오후 8:01 - 권지혁/3788님이 입장하셨습니다',
+    '2025.08.10 오후 8:03 - 홍길동님이 입장하셨습니다',
+    '2025.08.10 오후 8:04 - 홍길동-1234님이 들어왔습니다',
+    '2025.08.10 오후 8:05 - 관리자님이 홍길동님을 내보냈습니다',
+    '2025.08.10 오후 8:06 - 김민정 1122님이 입장했습니다',
+    '2025.08.10 오후 8:07 - 영희님을 내보냈습니다'
+  ].join('\n');
+  const blob=new Blob([sample],{type:'text/plain'}); const file=new File([blob],'demo.txt');
+  const input=$$('chatFile'); if(input){ const dt=new DataTransfer(); dt.items.add(file); input.files=dt.files; }
+  alert('데모 로그가 파일 입력에 주입되었습니다. 이제 “실행”을 눌러 테스트하세요.');
+}
+
+/* ========= 초기화 & 자가진단 ========= */
 (function init(){
-  populatePacks();
+  try{
+    txt('jsState','활성');
+    populatePacks();
+    bindDirect();
+    // GIS 로드 후 초기화
+    if(window.google?.accounts?.oauth2) initAuth(); else window.addEventListener('load', initAuth);
+
+    // 1초 뒤 자가진단: run 버튼 강제 호출해 핸들러 살아있는지 확인
+    setTimeout(()=>{
+      if($$('btnRun')) {
+        console.log('[self-test] click dispatch');
+        $$('#btnRun').dispatchEvent(new MouseEvent('click',{bubbles:true,cancelable:true}));
+        alert('클릭 자가진단 통과: 버튼 이벤트 시스템이 동작 중입니다. (실제 실행은 파일/시트 선택 필요)');
+      }
+    }, 1000);
+  }catch(e){
+    txt('err','초기화 오류: '+(e?.message||e));
+  }
 })();
-window.addEventListener('load', ()=>{ if(window.google?.accounts?.oauth2) initAuth(); });
 </script>
 </body>
 </html>
