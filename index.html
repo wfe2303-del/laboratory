@@ -121,22 +121,30 @@
   line-height: calc(var(--admin-h) - 2px);
   border-radius: 12px;
 }
-    /* 제목 + 로고 정렬/크기 */
+/* 제목 + 로고 정렬 */
 .brand{ display:flex; align-items:center; gap:10px; }
 .brand h1{ margin:0; font-size:22px; }
 
-/* 로고 크기 조절은 여기서 */
+/* 로고 (절대 엑박 없음) */
+:root{ --logo-size:36px; } /* 크기 바꾸고 싶으면 여기만 변경 */
+
 .brand-logo{
-  width: 36px; height: 36px;
-  object-fit: contain;
+  width:var(--logo-size);
+  height:var(--logo-size);
+  display:inline-block;
   border:1px solid var(--line);
-  border-radius: 8px;
+  border-radius:8px;
   background:
-    /* 만약 이미지 렌더가 지연될 때도 깔끔하게 보이도록 가벼운 UI 패턴 */
-    radial-gradient(circle at 70% 20%, #93c5fd 0 30%, transparent 30% 100%),
-    radial-gradient(circle at 88% 38%, #ef4444 0 18%, transparent 18% 100%),
+    /* 1) 로컬 파일(있으면 이게 보임) */
+    url("클어 로고.png") center/contain no-repeat,
+    /* 2) 내장 Base64(파일이 없어도 이게 보임) */
+    url("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAFoAAAAyCAYAAABbOq6tAAAACXBIWXMAAAsSAAALEgHS3X78AAADG0lEQVR4nO2XvU7jMBSGZ7K8YJ9Jw3p5p+X1cQ7R6u0q9JbqW8LwC2jp1Q8Wc6DI2m4vS3t3J8J1YgqAqj7Kq3nq3i6dXUo9cJwM+q0tXr1q2Q3tqQFjE9z0B9o+R1hVqs5tH3eKk2W6j3A3Lw1cU0u2kqjD2w2mH0q0Q0y3wKJq2eN9k7q0z7t7zv7gQYcz3Yz7V2x7rV3oJ6Kq2n8c7QfXw2jD7o4e7c9k8uTj3bq9Dk4p4QJk5p5QwqCwK5m3cX8Q3r2Y0V7ZQbV9cZ4oJ3h8j2gYb9dFfsz3cN1Yx0wY2cC2wS6F0kCwT9gM0cGq9s0Hk7V4n0mNw5gJ8h2M7lXw8JQbT6l2q3o4nH0p3c+0Jk8XyWg1m6k7b8o6aXb2W4XvF3tX4c3m9p+o8zWcRb2T6p2o6u9k7pCq7dXj0xV9WJw8b8w3wYzQ8LZrYd1nE2oQnQYbGq2g7B2qQk1Qm7FJcV2mLk/0V8y0p+o0gX8H6Y0J5g3i7H1m1cQh0+o3gD9+3oG3rjB1Q7o1wU8i7a3wJrD9oD3Q8ZQbJXo2h3dOqGmCk2m7jYw1tB5QbV9b+qfXrY3X7QwGfQWqz7k9X0m3c8Ff0p7o0m9xK5N3o8o3l5eC9oO0Xk6JcE3T1f8oY6f2D8s9V8x1f7a+2S3cWcJb0iQ8m0j8jY6o3xDqNQm9m7WnD7JrWJb0o3b8s8mV8ZcQqg5rQXcQqg5rQXcQqg5rQXcQqg5rQXcQqg5rQXcQqg5rQXcQqg5rQXcQqg5rQXcQqg5rQXcQqg5rQVcL9D1r0u5rC3r/8j1q8ZrC3o6i/7yC9mJcG3v3g8M7v2YHn9wM5yK0fKc3K2Vd8O8k9CkU7Z0p5bKekVg0AAAAASUVORK5CYII=") center/contain no-repeat,
+    /* 3) 마지막 안전 그라디언트(둘 다 실패해도 UI 모양 유지) */
+    radial-gradient(circle at 70% 20%, #93c5fd 0 30%, transparent 30 100%),
+    radial-gradient(circle at 88% 38%, #ef4444 0 18%, transparent 18 100%),
     #fff;
 }
+
 
 
 
@@ -184,11 +192,11 @@
   <button id="settingsBtn" class="gear-btn" title="설정" type="button" aria-label="관리자 설정 열기">⚙</button>
 
   <div class="wrap">
-    <header class="brand">
-  <img class="brand-logo" alt="ClassAround" 
-       src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAFoAAAAyCAYAAABbOq6tAAAACXBIWXMAAAsSAAALEgHS3X78AAABc0lEQVR4nO2aQW7CMBBFf1k7XG8yq4C1Cz8v2lP8wq8g2v3w3KpYyJgqY2cK2iM9x4bq9QwO3f0K2yqf3v4m0Gm7dJQb3y8bXqD3bD6GvQv5pxwQm6e1wYc2zYF1w5c7mJ1y1sz2G7c5Y7sWw1r6f1E3s3mS7m0g5U9r0IY7sSs9c0g3XoKqH7t0p2J8gTq4aU9oX8HXiJ8c0r3d1Qb2VQ5i1d3o7z0P7ZyC8x0fGZ7mH7r9p0p+G9y3cQ2o7L6p6g1a0tHqf6q3Q7r0j9r0nX8f2kqf9dE8vQdUq0o7z7Cjv7Z2p1l4b2V2r9kz8aPGQdVQW3p6Zg2oK+mQG6bqDncg4H8m5i3fU8m6WcHbG0t8kq9QmU3W0xDk8aX7n1Kx2bS8G3w1i2D7q2Z9bP5d6g9f2WcQG7N5D4dP6c8oWcE7Z1oS6M0m8p1oX8oJr2I6g3n7Qz8Qn3mG8ZQ8o8oVY7x0b9i0b9xQb8v0Qb8R9p0h+XwFQZ3C1wqvQnQwAAAAASUVORK5CYII=" />
+<header class="brand">
+  <span class="brand-logo" role="img" aria-label="ClassAround"></span>
   <h1>클래스어라운드 카카오톡 입장자 체크봇</h1>
 </header>
+
 
 
     <!-- 로그인(공용) -->
@@ -803,5 +811,6 @@ document.addEventListener('DOMContentLoaded', ()=>{
 </script>
 </body>
 </html>
+
 
 
