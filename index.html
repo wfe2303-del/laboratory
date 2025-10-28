@@ -3,8 +3,8 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>클래스어라운드 · 카카오톡 입장자 체크봇 (Sheets API)</title>
-  <!-- Google Identity Services (OAuth) -->
+  <title>클래스어라운드 · 카카오톡 입장자 체크봇 (Sheets API • 안정판)</title>
+  <!-- Google Identity Services -->
   <script src="https://accounts.google.com/gsi/client" async defer></script>
   <style>
     :root{
@@ -46,10 +46,13 @@
     @media(min-width:640px) and (max-width:999px){ .controls-grid{grid-template-columns:1fr 1fr} }
 
     /* ===== Admin Drawer ===== */
-    .gear-btn{position:fixed;top:16px;right:16px;z-index:50;background:#fff;border:1px solid var(--line);border-radius:12px;padding:8px;cursor:pointer}
+    .gear-btn{position:fixed;top:16px;right:16px;z-index:100;background:#fff;border:1px solid var(--line);border-radius:12px;padding:8px;cursor:pointer}
     .gear-btn:hover{border-color:var(--accent-strong);box-shadow:0 0 0 3px rgba(96,165,250,.2)}
-    .admin-overlay{position:fixed;inset:0;background:rgba(15,23,42,.28);backdrop-filter:saturate(140%) blur(2px);display:none;z-index:60}
-    .admin-drawer{position:fixed;top:0;right:0;height:100%;width:520px;max-width:92vw;background:#fff;border-left:1px solid var(--line);box-shadow:-8px 0 24px rgba(0,0,0,.08);padding:16px 16px 24px;display:none;flex-direction:column;gap:12px;z-index:70}
+    .admin-overlay{position:fixed;inset:0;background:rgba(15,23,42,.28);
+      backdrop-filter:saturate(140%) blur(2px);display:none;z-index:90;pointer-events:none}
+    .admin-drawer{position:fixed;top:0;right:0;height:100%;width:520px;max-width:92vw;background:#fff;
+      border-left:1px solid var(--line);box-shadow:-8px 0 24px rgba(0,0,0,.08);
+      padding:16px 16px 24px;display:none;flex-direction:column;gap:12px;z-index:95}
     .admin-head{display:flex;align-items:center;justify-content:space-between}
     .x-btn{appearance:none;border:1px solid var(--line);background:#fff;border-radius:10px;padding:6px 8px;cursor:pointer}
     .x-btn:hover{border-color:#94a3b8}
@@ -62,15 +65,12 @@
 <body>
   <!-- Settings Button -->
   <button class="gear-btn" title="관리자 설정" data-click="open-admin">
-    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-      <path d="M12 15.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7Z" stroke="#0f172a" stroke-width="1.5"/>
-      <path d="M19.4 15a7.9 7.9 0  0 0 .07-1l1.74-1.26a.9.9 0  0 0 .2-1.2l-1.65-2.86a.9.9 0  0 0-1.1-.39l-2 .8c-.28-.17-.57-.33-.86-.49l-.3-2.12a.9.9 0  0 0-.9-.77h-3.3a.9.9 0  0 0-.9.77l-.3 2.12c-.29.16-.58.32-.86.5l-2-.8a.9.9 0 0 0-1.1.39L2.6 11.5a.9.9 0  0 0 .2 1.2L4.54 14a7.9 7.9 0  0 0 0 1l-1.74 1.26a.9.9 0  0 0-.2 1.2l1.65 2.86c.24.42.74.6 1.16.4l2-.8c.27.18.56.34.86.5l.3 2.12c.07.44.45.77.9.77h3.3c.45 0 .83-.33.9-.77l.3-2.12c.3-.16.6-.32.87-.5l2 .8c.42.2.92.02 1.16-.4l1.64-2.86a.9.9 0  0 0-.2-1.2L19.4 15Z" stroke="#0f172a" stroke-width="1.5"/>
-    </svg>
+    ⚙
   </button>
 
   <!-- Admin Drawer -->
   <div id="adminOverlay" class="admin-overlay" data-click="close-admin"></div>
-  <aside id="adminDrawer" class="admin-drawer">
+  <aside id="adminDrawer" class="admin-drawer" aria-hidden="true">
     <div class="admin-head">
       <h3 style="margin:0">관리자 설정</h3>
       <button class="x-btn" data-click="close-admin">닫기</button>
@@ -110,7 +110,7 @@
     <h1>클래스어라운드 카카오톡 입장자 체크봇</h1>
     <div class="sub">
       흐름) <b>읽기 시트</b> 이름열로 현재 입장 판정(동명이인 시 닉네임 끝4로 구분) →
-      <b>공유 시트</b>는 I=결제완료 중 D(이름) 기준, 동명이인일 때만 E(끝4)도 일치해야 <b>S=입장</b> 기록.
+      <b>공유 시트</b>는 I=결제완료 중 D(이름) 기준, 동명이인이면 E(끝4)도 일치해야 <b>S=입장</b> 기록.
       퇴장/강퇴(“…나갔습니다/내보냈습니다”)는 최종 입장 집합에서 제외.
     </div>
 
@@ -167,7 +167,7 @@
   </div>
 
 <script>
-/* ===== 전역 오류를 화면에 표시 (조용히 죽는 문제 차단) ===== */
+/* ===== 전역 에러를 화면에 표기 (침묵크래시 방지) ===== */
 (function(){
   const out=(m,src,l,c,e)=>{ const el=document.getElementById('err'); const st=e?.stack?'\n'+e.stack:''; if(el) el.textContent='오류: '+m+(src?`\n${src}:${l}:${c}`:'')+st; };
   window.addEventListener('error', e=>out(e.message,e.filename,e.lineno,e.colno,e.error));
@@ -180,6 +180,7 @@ const WRITE_START_ROW = 2;
 const CLIENT_ID = "18228268359-iifm4ck3j9kqj74eh1p90tco1k2mbpi0.apps.googleusercontent.com";
 const $$ = id=>document.getElementById(id);
 const txt = (id,v)=>{ const el=$$(id); if(el) el.textContent=v??''; };
+if(!crypto.randomUUID){ crypto.randomUUID=()=>('xxxxxxxyxxxx').replace(/[xy]/g,c=>(c==='x'?((Math.random()*16)|0):((Math.random()*4)|8)).toString(16)); }
 function normalizeName(n){
   let s=String(n||'').trim();
   s=s.replace(/[\s]*[\(\[\{（【][^)\]\}）】]*[\)\]\}）】]\s*$/,''); // 괄호부 제거
@@ -238,7 +239,7 @@ async function batchUpdateValues(id, data){
 }
 
 /* ===== Admin 저장소 ===== */
-const PACKS_KEY='ca_gsapi_sources_v16'; // 새 키로 초기화
+const PACKS_KEY='ca_gsapi_sources_v17'; // 새 키(구 쓰레기 상태 무효화)
 const loadPacks=()=>{ try{return JSON.parse(localStorage.getItem(PACKS_KEY)||'[]');}catch(e){return [];} };
 const savePacks=p=>localStorage.setItem(PACKS_KEY,JSON.stringify(p));
 const addPack=p=>{ const a=loadPacks(); a.push(p); savePacks(a); };
@@ -483,7 +484,6 @@ async function runMain(){
     table('미확인 목록(동명이인/번호 문제)', ['name','reason'], unresolved);
 
     // 퇴장자 명단 (로스터 내)
-    const rosterSetN = new Set(rosterN);
     const leftRoster = leftFinal.filter(nN=>rosterSetN.has(nN)).map(nN=>{
       const idx = rosterN.indexOf(nN);
       return [roster[idx] || nN];
@@ -501,30 +501,21 @@ async function runMain(){
   }catch(e){ txt('err','오류: '+(e?.message||e)); console.error(e); }
 }
 
-/* ===== 데모 ===== */
-function runDemo(){
-  txt('err',''); const results=$$('results'); if(results) results.innerHTML='';
-  const sample = [
-    '2025.08.10 오후 8:01 - 권지혁/3788님이 입장하셨습니다',
-    '2025.08.10 오후 8:03 - 홍길동님이 입장하셨습니다',
-    '2025.08.10 오후 8:04 - 홍길동-1234님이 들어왔습니다',
-    '2025.08.10 오후 8:05 - 관리자님이 홍길동님을 내보냈습니다',
-    '2025.08.10 오후 8:06 - 김민정 1122님이 입장했습니다',
-    '2025.08.10 오후 8:07 - 영희님을 내보냈습니다'
-  ].join('\n');
-  const blob = new Blob([sample],{type:'text/plain'}); const file=new File([blob],'demo.txt');
-  const input=$$('chatFile'); if(input){ const dt=new DataTransfer(); dt.items.add(file); input.files=dt.files; }
+/* ===== 관리자 드로어 열고/닫기 ===== */
+function openAdmin(){
+  const ov=$$('#adminOverlay'), dr=$$('#adminDrawer');
+  if(ov&&dr){ ov.style.display='block'; ov.style.pointerEvents='auto'; dr.style.display='flex'; dr.setAttribute('aria-hidden','false'); renderPackList(); }
+}
+function closeAdmin(){
+  const ov=$$('#adminOverlay'), dr=$$('#adminDrawer');
+  if(ov&&dr){ ov.style.display='none'; ov.style.pointerEvents='none'; dr.style.display='none'; dr.setAttribute('aria-hidden','true'); }
 }
 
-/* ===== 관리자 드로어 열고/닫기 ===== */
-function openAdmin(){ $$('#adminOverlay').style.display='block'; $$('#adminDrawer').style.display='flex'; renderPackList(); }
-function closeAdmin(){ $$('#adminOverlay').style.display='none'; $$('#adminDrawer').style.display='none'; }
-
-/* ===== 이벤트 위임: 버튼 클릭은 data-click만 붙이면 전부 동작 ===== */
-document.addEventListener('click', (e)=>{
-  const btn = e.target.closest('[data-click]');
-  if(!btn) return;
-  const act = btn.getAttribute('data-click');
+/* ===== 이벤트 위임: 캡처 + 버블 모두 ===== */
+function handleClick(e){
+  const node = e.target.closest?.('[data-click]');
+  if(!node) return;
+  const act = node.getAttribute('data-click');
   try{
     if(act==='open-admin') return openAdmin();
     if(act==='close-admin') return closeAdmin();
@@ -533,7 +524,7 @@ document.addEventListener('click', (e)=>{
     if(act==='adm-del') return admDelPack();
     if(act==='adm-clear') return admClearAll();
     if(act==='adm-refresh') return admRefresh();
-    if(act==='adm-del-by'){ const id = btn.getAttribute('data-id'); if(id){ removePack(id); renderPackList(); populatePacks(); } return; }
+    if(act==='adm-del-by'){ const id = node.getAttribute('data-id'); if(id){ removePack(id); renderPackList(); populatePacks(); } return; }
 
     if(act==='refresh-meta') return refreshMeta();
     if(act==='login') return requestAccess();
@@ -545,7 +536,9 @@ document.addEventListener('click', (e)=>{
     console.error(err);
     txt('err','오류: '+(err?.message||err));
   }
-});
+}
+document.addEventListener('click', handleClick, true); // 캡처
+document.addEventListener('click', handleClick);       // 버블
 
 /* ===== 초기화 ===== */
 (function init(){
