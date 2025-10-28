@@ -140,8 +140,8 @@
     /* 2) 내장 Base64(파일이 없어도 이게 보임) */
     url("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAFoAAAAyCAYAAABbOq6tAAAACXBIWXMAAAsSAAALEgHS3X78AAADG0lEQVR4nO2XvU7jMBSGZ7K8YJ9Jw3p5p+X1cQ7R6u0q9JbqW8LwC2jp1Q8Wc6DI2m4vS3t3J8J1YgqAqj7Kq3nq3i6dXUo9cJwM+q0tXr1q2Q3tqQFjE9z0B9o+R1hVqs5tH3eKk2W6j3A3Lw1cU0u2kqjD2w2mH0q0Q0y3wKJq2eN9k7q0z7t7zv7gQYcz3Yz7V2x7rV3oJ6Kq2n8c7QfXw2jD7o4e7c9k8uTj3bq9Dk4p4QJk5p5QwqCwK5m3cX8Q3r2Y0V7ZQbV9cZ4oJ3h8j2gYb9dFfsz3cN1Yx0wY2cC2wS6F0kCwT9gM0cGq9s0Hk7V4n0mNw5gJ8h2M7lXw8JQbT6l2q3o4nH0p3c+0Jk8XyWg1m6k7b8o6aXb2W4XvF3tX4c3m9p+o8zWcRb2T6p2o6u9k7pCq7dXj0xV9WJw8b8w3wYzQ8LZrYd1nE2oQnQYbGq2g7B2qQk1Qm7FJcV2mLk/0V8y0p+o0gX8H6Y0J5g3i7H1m1cQh0+o3gD9+3oG3rjB1Q7o1wU8i7a3wJrD9oD3Q8ZQbJXo2h3dOqGmCk2m7jYw1tB5QbV9b+qfXrY3X7QwGfQWqz7k9X0m3c8Ff0p7o0m9xK5N3o8o3l5eC9oO0Xk6JcE3T1f8oY6f2D8s9V8x1f7a+2S3cWcJb0iQ8m0j8jY6o3xDqNQm9m7WnD7JrWJb0o3b8s8mV8ZcQqg5rQXcQqg5rQXcQqg5rQXcQqg5rQXcQqg5rQXcQqg5rQXcQqg5rQXcQqg5rQXcQqg5rQXcQqg5rQVcL9D1r0u5rC3r/8j1q8ZrC3o6i/7yC9mJcG3v3g8M7v2YHn9wM5yK0fKc3K2Vd8O8k9CkU7Z0p5bKekVg0AAAAASUVORK5CYII=") center/contain no-repeat,
     /* 3) 마지막 안전 그라디언트(둘 다 실패해도 UI 모양 유지) */
-    radial-gradient(circle at 70% 20%, #93c5fd 0 30%, transparent 30 100%),
-    radial-gradient(circle at 88% 38%, #ef4444 0 18%, transparent 18 100%),
+    radial-gradient(circle at 70% 20%, #93c5fd 0% 30%, transparent 30% 100%),
+    radial-gradient(circle at 88% 38%, #ef4444 0% 18%, transparent 18% 100%),
     #fff;
 }
 
@@ -811,6 +811,7 @@ document.addEventListener('DOMContentLoaded', ()=>{
 </script>
 </body>
 </html>
+
 
 
 
