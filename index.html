@@ -24,7 +24,7 @@
       border-radius:var(--radius); padding:10px 12px; outline:none; height:var(--ctl-h);
     }
     .btn{
-      appearance:none; border:1px solid var(--line); background:#fff; color:var(--text);
+      appearance:none; border:1px solid var(--line); background:#fff; color:#0f172a;
       padding:10px 14px; border-radius:var(--radius); cursor:pointer; transition:all .15s ease;
       height:var(--ctl-h); display:inline-flex; align-items:center; justify-content:center;
     }
@@ -44,14 +44,20 @@
     .controls-grid{display:grid;gap:var(--gap);align-items:end}
     @media(min-width:1000px){ .controls-grid{grid-template-columns:1.2fr 1.1fr 1fr} }
     @media(min-width:640px) and (max-width:999px){ .controls-grid{grid-template-columns:1fr 1fr} }
+
+    /* Admin toggle button */
     .gear-btn{position:fixed;top:16px;right:16px;z-index:50;background:#fff;border:1px solid var(--line);border-radius:12px;padding:8px;cursor:pointer}
-    .admin-overlay{position:fixed;inset:0;background:rgba(15,23,42,.28);backdrop-filter:saturate(140%) blur(2px);
-      visibility:hidden; opacity:0; pointer-events:none; transition:.15s; z-index:60;}
-    .admin-overlay.open{visibility:visible; opacity:1; pointer-events:auto;}
-    .admin-drawer{position:fixed;top:0;right:0;height:100%;width:520px;max-width:92vw;background:#fff;border-left:1px solid var(--line);
-      box-shadow:-8px 0 24px rgba(0,0,0,.08);padding:16px 16px 24px;display:flex;flex-direction:column;gap:12px;z-index:70;
-      transform:translateX(12px); opacity:0; pointer-events:none; transition:transform .15s, opacity .15s}
-    .admin-drawer.open{transform:translateX(0); opacity:1; pointer-events:auto;}
+
+    /* Admin overlay/drawer — 닫혔을 때 절대 클릭 못 가로채도록 */
+    .admin-overlay{position:fixed;inset:0;background:rgba(15,23,42,.28);
+      backdrop-filter:saturate(140%) blur(2px); z-index:60;}
+    .admin-drawer{position:fixed;top:0;right:0;height:100%;width:520px;max-width:92vw;background:#fff;
+      border-left:1px solid var(--line);box-shadow:-8px 0 24px rgba(0,0,0,.08);
+      padding:16px 16px 24px;display:flex;flex-direction:column;gap:12px;z-index:70;}
+    /* 기본은 닫힘 */
+    #adminOverlay:not(.open){visibility:hidden!important;opacity:0!important;pointer-events:none!important;display:none!important;}
+    #adminDrawer:not(.open){transform:translateX(12px);opacity:0;pointer-events:none;}
+    #adminDrawer.open{transform:none;opacity:1;pointer-events:auto;transition:transform .15s, opacity .15s}
     .admin-head{display:flex;align-items:center;justify-content:space-between}
     .x-btn{appearance:none;border:1px solid var(--line);background:#fff;border-radius:10px;padding:6px 8px;cursor:pointer}
   </style>
@@ -62,8 +68,8 @@
   <div class="wrap">
     <h1>클래스어라운드 카카오톡 입장자 체크봇</h1>
     <div class="sub">
-      순서) <b>읽기 시트</b> 이름열만으로 입장 판정(겹치면 닉네임 끝4로 구분) → <b>공유 시트</b>는 I=결제완료인 행 중 D=이름(동명이인 시 E=끝4) 매칭에만 <b>S=입장</b> 기록.
-      <b>퇴장/강퇴(“…나갔습니다/내보냈습니다”)</b>는 최종 입장 집합에서 제외하고 <b>퇴장자 명단</b>에 따로 표시.
+      순서) <b>읽기 시트</b> 이름열로 입장 판정(겹치면 닉네임 끝4로 구분) → <b>공유 시트</b>는 I=결제완료 & D=이름(동명이인 시 E=끝4) 매칭에만 <b>S=입장</b> 기록.
+      <br><b>퇴장/강퇴(“…나갔습니다/…내보냈습니다”)</b>는 최종 입장 집합에서 제외하고 <b>퇴장자 표</b>로 분리.
     </div>
 
     <div class="card">
@@ -80,7 +86,7 @@
         <div>
           <label>카카오톡 대화 <span class="hint">.txt</span></label>
           <input id="chatFile" type="file" accept=".txt" />
-          <div class="hint">예: “… 권지혁/3788님이 입장하셨습니다.”</div>
+          <div class="hint">예: “… 홍길동/1234님이 입장하셨습니다.”</div>
         </div>
         <div>
           <label>로스터 소스 (스프레드시트)</label>
@@ -96,7 +102,7 @@
             <select id="readSheetSelect" style="min-width:180px"></select>
             <select id="writeSheetSelect" style="min-width:180px"></select>
           </div>
-          <div class="hint">공유 시트: D(이름)·E(끝4)·I(결제상태)·S(기록). <b>‘입장’만 씀</b>(미입장은 빈칸).</div>
+          <div class="hint">공유: D(이름)·E(끝4)·I(결제상태)·S(기록). <b>‘입장’만 씀</b>(미입장은 빈칸).</div>
         </div>
       </div>
 
@@ -116,8 +122,8 @@
   </div>
 
   <!-- 관리자 드로어 -->
-  <div id="adminOverlay" class="admin-overlay" aria-hidden="true"></div>
-  <aside id="adminDrawer" class="admin-drawer" aria-hidden="true">
+  <div id="adminOverlay" class="admin-overlay"></div>
+  <aside id="adminDrawer" class="admin-drawer">
     <div class="admin-head">
       <h3 style="margin:0">관리자 설정</h3>
       <button id="closeAdmin" class="x-btn" type="button">닫기</button>
@@ -169,13 +175,27 @@ const CLIENT_ID = "18228268359-iifm4ck3j9kqj74eh1p90tco1k2mbpi0.apps.googleuserc
 const $$ = (id)=>document.getElementById(id);
 const txt = (id, v)=>{ const el=$$(id); if(el) el.textContent=v||""; };
 const val = (id)=>{ const el=$$(id); return el?el.value:""; };
-function on(id, event, handler){ const el=$$(id); if(!el){ console.warn("[bind skipped] #"+id); return; } el.addEventListener(event, e=>{ try{ handler(e); }catch(err){ console.error(err); }}); }
+
+/* 이중 바인딩 방지용 on() */
+function on(id, event, handler){
+  const el = $$(id);
+  if(!el){ console.warn("[bind skipped] #"+id); return; }
+  const key = '__bound_'+event;
+  if (el[key]) el.removeEventListener(event, el[key]);
+  el[key] = (e)=>{ try{ handler(e); }catch(err){ console.error(err); } };
+  el.addEventListener(event, el[key]);
+}
+function setErr(msg){
+  const el=$$('err'); if(!el) return;
+  el.textContent = msg||'';
+  if(msg) el.scrollIntoView({behavior:'smooth', block:'center'});
+}
 function show(el){ el.classList.add('open'); el.setAttribute('aria-hidden','false'); }
 function hide(el){ el.classList.remove('open'); el.setAttribute('aria-hidden','true'); }
 function last4Digits(s){ const d=String(s||'').replace(/[^\d]/g,''); return d.slice(-4); }
 function normalizeName(n){
   let s = String(n||'').trim();
-  s = s.replace(/[\s]*[\(\[\{（【][^)\]\}）】]*[\)\]\}）】]\s*$/,''); // 끝 괄호태그 제거
+  s = s.replace(/[\s]*[\(\[\{（【][^)\]\}）】]*[\)\]\}）】]\s*$/,''); // 끝 괄호 제거
   s = s.replace(/[/_\-\s]+$/,''); // 끝 구분자 제거
   s = s.replace(/\s+/g,' ');     // 공백 정리
   return s;
@@ -294,7 +314,7 @@ async function refreshMeta(){
     const packs=loadPacks(); const idx=packs.findIndex(p=>p.id===id); if(idx<0) return;
     const titles = await listSheets(packs[idx].sheetId);
     packs[idx].sheets = titles; savePacks(packs); onPackChanged();
-  }catch(e){ txt('err','시트 목록 갱신 실패: '+e.message); }
+  }catch(e){ setErr('시트 목록 갱신 실패: '+e.message); }
 }
 function onPackChanged(){
   const sel=$$("sheetPackSelect"); if(!sel) return;
@@ -337,9 +357,9 @@ function parseChat(text){
   const events=[]; let joinedCount=0,leftCount=0;
   for(const raw of lines){
     const line=raw.trim(); if(!line) continue;
-    let m=line.match(JOIN_PAT);  if(m){ events.push({type:'join',  nick:m[1].trim(), raw:line}); joinedCount++; continue; }
+    let m=line.match(JOIN_PAT);  if(m){ events.push({type:'join',  nick=m[1].trim(), raw:line}); joinedCount++; continue; }
     m=line.match(LEAVE_PAT);     if(m){ events.push({type:'leave', nick=m[1].trim(), raw:line}); leftCount++;  continue; }
-    m=line.match(KICK_PAT1);     if(m){ events.push({type:'leave', nick:m[1].trim(), raw:line}); leftCount++;  continue; }
+    m=line.match(KICK_PAT1);     if(m){ events.push({type:'leave', nick=m[1].trim(), raw:line}); leftCount++;  continue; }
     m=line.match(KICK_PAT2);     if(m){ events.push({type:'leave', nick=m[1].trim(), raw:line}); leftCount++;  continue; }
   }
   return {events, joinedCount, leftCount};
@@ -348,7 +368,7 @@ function parseChat(text){
 /* ===== 실행 ===== */
 async function runMain(){
   try{
-    txt('err','');
+    setErr('');
     const resBox = $$('results'); if(resBox) resBox.innerHTML='';
     const previewOnly = $$("#previewOnly")?.checked;
 
@@ -367,7 +387,7 @@ async function runMain(){
     const NAME_ONLY_SENTINEL='__NAMEONLY__';
     const activeDigitsByName=new Map();   // nameN -> Set(last4 or sentinel)
     const nameOnlyJoin=new Set();         // 번호 없이 입장
-    const leftEver=new Set();             // 퇴장(또는 강퇴) 이벤트가 있었던 이름(정규화)
+    const leftEver=new Set();             // 퇴장/강퇴 발생한 이름
 
     const ensure=(n)=>{ if(!activeDigitsByName.has(n)) activeDigitsByName.set(n,new Set()); return activeDigitsByName.get(n); };
 
@@ -383,7 +403,7 @@ async function runMain(){
         leftEver.add(nN);
         const set=ensure(nN);
         if(s.digits){ set.delete(s.digits); set.delete(NAME_ONLY_SENTINEL); }
-        else { set.clear(); } // 번호 없는 퇴장은 해당 이름의 모든 활성 입장 해제
+        else { set.clear(); }
         if(set.size===0) activeDigitsByName.delete(nN);
       }
     }
@@ -423,7 +443,7 @@ async function runMain(){
       }
     }
 
-    // 명단 외 입장자 (퇴장 최종자 제외하려면 active 기반이므로 이미 제외됨)
+    // 명단 외 입장자
     const extra=[];
     [...activeDigitsByName.entries()].sort(([a],[b])=>a.localeCompare(b,'ko')).forEach(([nN,set])=>{
       if(!rosterSetN.has(nN)){
@@ -460,10 +480,10 @@ async function runMain(){
       const phone4  = last4Digits(r[1] ?? '');    // E
       if(!nameN) continue;
 
-      // 퇴장 최종자는 쓰지 않음
+      // 최종 퇴장자는 쓰지 않음
       if(leftFinal.includes(nameN)) continue;
 
-      // 현재 입장 중이 아니라면 쓰지 않음
+      // 현재 입장 중이 아니면 쓰지 않음
       if(!attendingSetN.has(nameN)) continue;
 
       const set = activeDigitsByName.get(nameN) || new Set();
@@ -496,7 +516,8 @@ async function runMain(){
       pills.appendChild(mk(`입장 로그 ${joinedCount}`,'ok'));
       pills.appendChild(mk(`퇴장/강퇴 로그 ${leftCount}`,'bad'));
       pills.appendChild(mk(`현재 입장(읽기시트 기준) ${attendingSetN.size}`,'warn'));
-      pills.appendChild(mk(`최종 퇴장 ${leftFinal.length}`,'bad'));
+      const leftFinalCount = leftFinal.length;
+      pills.appendChild(mk(`최종 퇴장 ${leftFinalCount}`,'bad'));
       if(previewOnly) pills.appendChild(mk('체크만','warn'));
     }
 
@@ -517,23 +538,22 @@ async function runMain(){
     resTbl('명단 외 입장자', ['name/last4 or (번호없음)'], extra);
     resTbl('미확인 목록(공유 시트 동명이인/번호 문제)', ['name','reason'], unresolved);
 
-    // 퇴장자 명단 (로스터 내/외 구분)
+    // 퇴장자 표 2종
     const rosterSetNN = new Set(rosterNamesN);
     const leftRoster = leftFinal.filter(nN=>rosterSetNN.has(nN)).map(nN=>[rosterNames[rosterNamesN.indexOf(nN)]||nN]);
     const leftExtra  = leftFinal.filter(nN=>!rosterSetNN.has(nN)).map(nN=>[nN]);
-
     resTbl('퇴장자 명단(로스터 기준)', ['name'], leftRoster);
     resTbl('명단 외 퇴장자', ['name'], leftExtra);
 
     resTbl(previewOnly ? '예상 갱신 결과(체크만 모드)' : '공유 시트 갱신 결과',
            ['updated_cells'], updates.map(u=>[u.range+' ← 입장']));
 
-  }catch(e){ txt('err','오류: '+(e?.message||e)); console.error(e); }
+  }catch(e){ setErr('오류: '+(e?.message||e)); console.error(e); }
 }
 
 /* ===== 데모 ===== */
 function runDemo(){
-  txt('err','');
+  setErr('');
   const resultsEl = $$('results'); if(resultsEl) resultsEl.innerHTML='';
   const chatText=[
     '2025.08.10 오후 8:01 - 권지혁/3788님이 입장하셨습니다',
@@ -564,15 +584,16 @@ function runDemo(){
 /* ===== 초기화 ===== */
 window.addEventListener('load', ()=>{ if(window.google?.accounts?.oauth2) initAuth(); });
 document.addEventListener('DOMContentLoaded', ()=>{
+  // 버튼/링크 바인딩(이중 바인딩 방지)
   on('gsLoginBtn','click', requestAccess);
   on('gsLogoutBtn','click', revokeAccess);
 
   const overlay=$$('adminOverlay'), drawer=$$('adminDrawer');
-  const openAdmin=()=>{ if(overlay&&drawer){ show(overlay); show(drawer); renderAdmList(); } };
-  const closeAdmin=()=>{ if(overlay&&drawer){ hide(overlay); hide(drawer); } };
+  const openAdmin=()=>{ if(overlay&&drawer){ overlay.classList.add('open'); drawer.classList.add('open'); } };
+  const closeAdmin=()=>{ if(overlay&&drawer){ overlay.classList.remove('open'); drawer.classList.remove('open'); } };
   on('settingsBtn','click', openAdmin);
   on('closeAdmin','click', closeAdmin);
-  if(overlay) overlay.addEventListener('click', closeAdmin);
+  if(overlay) overlay.addEventListener('click', closeAdmin, {capture:true});
 
   on('admAdd','click', admAdd);
   on('admClearAll','click', ()=>{ if(confirm('모든 연결을 삭제할까요?')){ clearPacks(); renderAdmList(); populatePacks(); } });
@@ -583,6 +604,7 @@ document.addEventListener('DOMContentLoaded', ()=>{
   on('runBtn','click', runMain);
   on('demoBtn','click', runDemo);
 
+  renderAdmList();
   populatePacks();
 });
 </script>
