@@ -220,21 +220,39 @@
     if (!oauthReady) tokenClient.requestAccessToken({ prompt: 'consent' });
   }
 
-  // ✅ A2부터 항상 추가되도록 수정된 함수
-  async function appendToSheet(values) {
+  // ✅ 매 전송 시 B2:O 전체 초기화 후, B2부터 값을 덮어쓰기(update)
+  async function clearRange(spreadsheetId, range){
+    return await gapi.client.sheets.spreadsheets.values.clear({ spreadsheetId, range });
+  }
+
+  async function writeFromB2(values){
     const spreadsheetId = parseSpreadsheetId($('#sheetUrl').value);
     if (!spreadsheetId) { toast('스프레드시트 URL/ID를 입력하세요', 'error'); throw new Error('no sheet'); }
     const sheetName = ($('#rangeA1').value.trim() || 'Sheet1');
-    const range = `${sheetName}!A2`;                  // ← A2 고정 시작
     const valueInputOption = $('#valueInputOption').value;
-    const body = { range, majorDimension: 'ROWS', values };
-    return await gapi.client.sheets.spreadsheets.values.append({
-      spreadsheetId,
-      range,
-      valueInputOption,
-      insertDataOption: 'INSERT_ROWS',
-      resource: body,
+
+    // 1) B2:O 전체 비우기 (정리 시트 컬럼 범위)
+    await clearRange(spreadsheetId, `${sheetName}!B2:O`);
+
+    // 2) 우리의 내부 배열은 [A..O] 15열 구조 → B..O만 추려서 기록
+    const valuesBO = values.map(r => {
+      const row = Array.isArray(r) ? r : [];
+      const slice = row.slice(1, 15); // index 1~14 → B..O
+      while (slice.length < 14) slice.push('');
+      return slice;
     });
+
+    // 3) B2부터 덮어쓰기(update)
+    const res = await gapi.client.sheets.spreadsheets.values.update({
+      spreadsheetId,
+      range: `${sheetName}!B2`,
+      valueInputOption,
+      resource: { range: `${sheetName}!B2`, majorDimension: 'ROWS', values: valuesBO }
+    });
+
+    // 업데이트된 행 수를 반환
+    const updated = res.result && (res.result.updatedRows || valuesBO.length);
+    return updated;
   }
 
   function parseSpreadsheetId(input){ if(!input) return ''; const m = input.match(/\/spreadsheets\/d\/([a-zA-Z0-9-_]+)/); return m && m[1] ? m[1] : input.trim(); }
@@ -422,9 +440,8 @@
         const rowsToSend = hasHeader ? parsedRows.slice(1) : parsedRows;
         if (!rowsToSend.length) { toast('전송할 데이터 행이 없습니다', 'error'); return; }
         $('#btnSend').disabled = true;
-        const res = await appendToSheet(rowsToSend);
-        const updates = res.result && res.result.updates ? res.result.updates.updatedRows : undefined;
-        toast(`전송 완료: ${updates ?? rowsToSend.length}행`, 'ok');
+        const updated = await writeFromB2(rowsToSend);
+        toast(`전송 완료: ${updated}행`, 'ok');
       }catch(err){ console.error(err); toast('전송 실패: 콘솔 확인', 'error'); }
       finally{ $('#btnSend').disabled = false; }
     });
