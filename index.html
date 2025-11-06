@@ -92,7 +92,7 @@
 
   <script>
   // ====== Config ======
-  const OAUTH_CLIENT_ID = "18228268359-iifm4ck3j9kqj74eh1p90tco1k2mbpi0.apps.googleusercontent.com"; // TODO
+  const OAUTH_CLIENT_ID = "18228268359-iifm4ck3j9kqj74eh1p90tco1k2mbpi0.apps.googleusercontent.com"; // TODO 교체
   const OAUTH_SCOPES   = "https://www.googleapis.com/auth/spreadsheets";
 
   // ====== State ======
@@ -165,7 +165,7 @@
     const colCount = rows[0].length;
 
     if (typeof __ensureAsc === 'function') __ensureAsc();
-        const hasHeader = $('#optHasHeader').checked;
+    const hasHeader = $('#optHasHeader').checked;
     if (hasHeader) {
       const tr = document.createElement('tr');
       rows[0].forEach((h, idx) => {
@@ -220,12 +220,14 @@
     if (!oauthReady) tokenClient.requestAccessToken({ prompt: 'consent' });
   }
 
+  // ✅ A2부터 항상 추가되도록 수정된 함수
   async function appendToSheet(values) {
     const spreadsheetId = parseSpreadsheetId($('#sheetUrl').value);
     if (!spreadsheetId) { toast('스프레드시트 URL/ID를 입력하세요', 'error'); throw new Error('no sheet'); }
-    const range = ($('#rangeA1').value.trim() || 'Sheet1');
+    const sheetName = ($('#rangeA1').value.trim() || 'Sheet1');
+    const range = `${sheetName}!A2`;                  // ← A2 고정 시작
     const valueInputOption = $('#valueInputOption').value;
-    const body = { values };
+    const body = { range, majorDimension: 'ROWS', values };
     return await gapi.client.sheets.spreadsheets.values.append({
       spreadsheetId,
       range,
@@ -245,7 +247,7 @@
         complete: (res)=>{
           let rows = Array.isArray(res.data)? res.data : [];
           rows = rows.map(r => Array.isArray(r)? r : [r]);
-          const count = rows.filter(r=> r.some(c=> String(c).trim()!=='')).length;
+          const count = rows.filter(r=> r.some(c=> String(c).trim()!==''));
           if(count>0){ resolve(rows); return; }
           // 인코딩 재시도
           const tryEncodings = ['UTF-8','EUC-KR','CP949','ISO-8859-1'];
@@ -256,7 +258,7 @@
             const parsed = Papa.parse(String(text), { skipEmptyLines:'greedy' });
             let rows2 = Array.isArray(parsed.data)? parsed.data : [];
             rows2 = rows2.map(r => Array.isArray(r)? r : [r]);
-            const cnt2 = rows2.filter(r=> r.some(c=> String(c).trim()!=='')).length;
+            const cnt2 = rows2.filter(r=> r.some(c=> String(c).trim()!==''));
             if(cnt2>0 || idx>=tryEncodings.length-1){ resolve(rows2); }
             else { idx++; reader.readAsText(file, tryEncodings[idx]); }
           };
@@ -480,4 +482,3 @@
   </script>
 </body>
 </html>
-
