@@ -20,7 +20,7 @@
   <div class="max-w-6xl mx-auto p-6">
     <header class="mb-6">
       <h1 class="text-xl md:text-2xl font-bold">수강생 시트 자동 업데이트</h1>
-      <p class="text-sm text-slate-600 mt-1">좌: 카드 CSV · 우: 계좌(원장 tickets + 응답 responses). K(결제시간) 기준 오래된→최신 정렬, 카드 뒤에 계좌를 이어 붙입니다.</p>
+      <p class="text-sm text-slate-600 mt-1">좌: 카드 CSV · 우: 계좌(원장 tickets + 응답 responses). K(결제시간) 기준 오래된→최신 정렬, 카드 뒤에 계좌를 이어 붙입니다. (시트 기록 범위: <b>B~N</b>)</p>
     </header>
 
     <section class="grid lg:grid-cols-2 gap-6 mb-6">
@@ -88,7 +88,7 @@
     <!-- Preview -->
     <section class="bg-white rounded-xl border border-slate-200 p-4">
       <div class="flex items-center justify-between mb-3">
-        <h2 class="font-semibold">정리 시트 미리보기 <span class="text-xs text-slate-400">(K열 오름차순 · 카드 후 계좌)</span></h2>
+        <h2 class="font-semibold">정리 시트 미리보기 <span class="text-xs text-slate-400">(K열 오름차순 · 카드 후 계좌 · 시트 기록 B~N)</span></h2>
         <div class="text-xs text-slate-500" id="summary"></div>
       </div>
       <div class="scroll-xy" style="max-height: 520px;">
@@ -101,7 +101,7 @@
 
   <script>
   /* =================== 기본 설정 =================== */
-  const OAUTH_CLIENT_ID = "18228268359-iifm4ck3j9kqj74eh1p90tco1k2mbpi0.apps.googleusercontent.com"; // ← 교체
+  const OAUTH_CLIENT_ID = "18228268359-iifm4ck3j9kqj74eh1p90tco1k2mbpi0.apps.googleusercontent.com"; // ← 사용 중이던 ID
   const OAUTH_SCOPES   = "https://www.googleapis.com/auth/spreadsheets";
 
   let tokenClient=null, oauthReady=false;
@@ -191,34 +191,34 @@
   async function clearRange(spreadsheetId, range){
     return await gapi.client.sheets.spreadsheets.values.clear({ spreadsheetId, range });
   }
-async function writeFromB2(values){
-  const spreadsheetId = parseSpreadsheetId($('#sheetUrl').value);
-  if(!spreadsheetId){ toast('스프레드시트 URL/ID를 입력하세요','error'); throw new Error('no sheet'); }
-  const sheetName = ($('#rangeA1').value.trim() || 'Sheet1');
-  const valueInputOption = $('#valueInputOption').value;
 
-  // 1) B2:N 비우기 (이제 O는 터치 안 함)
-  await clearRange(spreadsheetId, `${sheetName}!B2:N`);
+  // ✅ 시트 기록: B2:N만 초기화/업데이트 (N열까지만)
+  async function writeFromB2(values){
+    const spreadsheetId = parseSpreadsheetId($('#sheetUrl').value);
+    if(!spreadsheetId) { toast('스프레드시트 URL/ID를 입력하세요','error'); throw new Error('no sheet'); }
+    const sheetName = ($('#rangeA1').value.trim() || 'Sheet1');
+    const valueInputOption = $('#valueInputOption').value;
 
-  // 2) 내부 배열(A..O)에서 B..N만 잘라서 기록 (index 1..13)
-  const valuesBN = values.map(r=>{
-    const row = Array.isArray(r) ? r : [];
-    const slice = row.slice(1, 14);  // ← B..N (end-exclusive 14)
-    while (slice.length < 13) slice.push(''); // B~N = 13칸 보장
-    return slice;
-  });
+    // 1) B2:N 비우기 (이제 O는 건드리지 않음)
+    await clearRange(spreadsheetId, `${sheetName}!B2:N`);
 
-  // 3) B2:N에 덮어쓰기(update)
-  const res = await gapi.client.sheets.spreadsheets.values.update({
-    spreadsheetId,
-    range: `${sheetName}!B2:N`,
-    valueInputOption,
-    resource: { range: `${sheetName}!B2:N`, majorDimension: 'ROWS', values: valuesBN }
-  });
+    // 2) 내부 배열(A..O)에서 B..N만 잘라 기록 (index 1..13)
+    const valuesBN = values.map(r=>{
+      const row=Array.isArray(r)?r:[];
+      const sl=row.slice(1,14);             // B..N (end-exclusive 14)
+      while(sl.length<13) sl.push('');      // B~N 13칸 보장
+      return sl;
+    });
 
-  return res.result?.updatedRows ?? valuesBN.length;
-}
-</script>
+    // 3) B2:N에 덮어쓰기
+    const res = await gapi.client.sheets.spreadsheets.values.update({
+      spreadsheetId,
+      range: `${sheetName}!B2:N`,
+      valueInputOption,
+      resource: { range: `${sheetName}!B2:N`, majorDimension:'ROWS', values: valuesBN }
+    });
+    return res.result?.updatedRows ?? valuesBN.length;
+  }
 
   /* =================== CSV 로드 =================== */
   function readCsv(file){
@@ -353,6 +353,10 @@ async function writeFromB2(values){
   }
 
   /* =================== 빌드 & 프리뷰 =================== */
+  function buildHeader(){
+    return ['A','B','C','D','E','F','G','H(결제금액)','I(상태)','J','K(결제시간)','L(결제수단)','M(환불금액)','N(환불일시)','O(예비)'];
+  }
+
   function buildFinalRows(){
     const header=buildHeader();
     const card = csvCard.length ? processCardRows(csvCard, $('#headCard').checked) : [];
@@ -472,4 +476,3 @@ async function writeFromB2(values){
   </script>
 </body>
 </html>
-
