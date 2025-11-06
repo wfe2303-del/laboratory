@@ -191,23 +191,34 @@
   async function clearRange(spreadsheetId, range){
     return await gapi.client.sheets.spreadsheets.values.clear({ spreadsheetId, range });
   }
-  async function writeFromB2(values){
-    const spreadsheetId = parseSpreadsheetId($('#sheetUrl').value);
-    if(!spreadsheetId) { toast('스프레드시트 URL/ID를 입력하세요','error'); throw new Error('no sheet'); }
-    const sheetName = ($('#rangeA1').value.trim() || 'Sheet1');
-    const valueInputOption = $('#valueInputOption').value;
+async function writeFromB2(values){
+  const spreadsheetId = parseSpreadsheetId($('#sheetUrl').value);
+  if(!spreadsheetId){ toast('스프레드시트 URL/ID를 입력하세요','error'); throw new Error('no sheet'); }
+  const sheetName = ($('#rangeA1').value.trim() || 'Sheet1');
+  const valueInputOption = $('#valueInputOption').value;
 
-    await clearRange(spreadsheetId, `${sheetName}!B2:O`);
+  // 1) B2:N 비우기 (이제 O는 터치 안 함)
+  await clearRange(spreadsheetId, `${sheetName}!B2:N`);
 
-    const valuesBO = values.map(r=>{ const row=Array.isArray(r)?r:[]; const sl=row.slice(1,15); while(sl.length<14) sl.push(''); return sl; });
-    const res = await gapi.client.sheets.spreadsheets.values.update({
-      spreadsheetId,
-      range: `${sheetName}!B2`,
-      valueInputOption,
-      resource: { range: `${sheetName}!B2`, majorDimension:'ROWS', values: valuesBO }
-    });
-    return res.result?.updatedRows ?? valuesBO.length;
-  }
+  // 2) 내부 배열(A..O)에서 B..N만 잘라서 기록 (index 1..13)
+  const valuesBN = values.map(r=>{
+    const row = Array.isArray(r) ? r : [];
+    const slice = row.slice(1, 14);  // ← B..N (end-exclusive 14)
+    while (slice.length < 13) slice.push(''); // B~N = 13칸 보장
+    return slice;
+  });
+
+  // 3) B2:N에 덮어쓰기(update)
+  const res = await gapi.client.sheets.spreadsheets.values.update({
+    spreadsheetId,
+    range: `${sheetName}!B2:N`,
+    valueInputOption,
+    resource: { range: `${sheetName}!B2:N`, majorDimension: 'ROWS', values: valuesBN }
+  });
+
+  return res.result?.updatedRows ?? valuesBN.length;
+}
+</script>
 
   /* =================== CSV 로드 =================== */
   function readCsv(file){
@@ -461,3 +472,4 @@
   </script>
 </body>
 </html>
+
