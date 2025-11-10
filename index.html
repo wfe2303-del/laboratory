@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>수강생 시트 자동 업데이트 (카드 + 계좌)</title>
+  <title>수강생 시트 자동 업데이트 (카드 + 계좌 · C열 이름키)</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
   <script src="https://accounts.google.com/gsi/client" async defer></script>
@@ -20,7 +20,7 @@
   <div class="max-w-6xl mx-auto p-6">
     <header class="mb-6">
       <h1 class="text-xl md:text-2xl font-bold">수강생 시트 자동 업데이트</h1>
-      <p class="text-sm text-slate-600 mt-1">좌: 카드 CSV · 우: 계좌(원장 tickets + 응답 responses). K(결제시간) 기준 오래된→최신 정렬, 카드 뒤에 계좌를 이어 붙입니다. (시트 기록 범위: <b>B~N</b>)</p>
+      <p class="text-sm text-slate-600 mt-1">좌: 카드 CSV · 우: 계좌(원장 tickets + 응답 responses). 카드/계좌 모두 K(결제시간/입금일시) 기준 오래된→최신 정렬. 계좌는 <b>tickets의 C열 이름</b>으로 입금↔출금(환불) 매칭합니다.</p>
     </header>
 
     <section class="grid lg:grid-cols-2 gap-6 mb-6">
@@ -36,16 +36,17 @@
         <h2 class="font-semibold">② 계좌이체 CSV 2개</h2>
         <div class="grid sm:grid-cols-2 gap-3">
           <div>
-            <label class="block text-sm font-semibold mb-1">tickets.csv (입출금 원장)</label>
+            <label class="block text-sm font-semibold mb-1">tickets.csv (입출금 원장 · C열=이름)</label>
             <input id="csvTicket" type="file" accept="text/csv,.csv" class="block w-full text-sm" />
             <label class="inline-flex items-center gap-2 text-xs mt-1"><input type="checkbox" id="headTicket" class="accent-blue-600" checked /> 첫 행은 헤더</label>
           </div>
           <div>
-            <label class="block text-sm font-semibold mb-1">responses.csv (신청/응답)</label>
+            <label class="block text-sm font-semibold mb-1">responses.csv (신청/응답 · 옵션)</label>
             <input id="csvResp" type="file" accept="text/csv,.csv" class="block w-full text-sm" />
             <label class="inline-flex items-center gap-2 text-xs mt-1"><input type="checkbox" id="headResp" class="accent-blue-600" checked /> 첫 행은 헤더</label>
           </div>
         </div>
+        <p class="text-xs text-slate-500">※ responses 없이 tickets만으로도 동작합니다. responses는 이메일/연락처 보강용.</p>
       </div>
     </section>
 
@@ -88,7 +89,7 @@
     <!-- Preview -->
     <section class="bg-white rounded-xl border border-slate-200 p-4">
       <div class="flex items-center justify-between mb-3">
-        <h2 class="font-semibold">정리 시트 미리보기 <span class="text-xs text-slate-400">(K열 오름차순 · 카드 후 계좌 · 시트 기록 B~N)</span></h2>
+        <h2 class="font-semibold">정리 시트 미리보기 <span class="text-xs text-slate-400">(K열 오름차순 · 카드 후 계좌)</span></h2>
         <div class="text-xs text-slate-500" id="summary"></div>
       </div>
       <div class="scroll-xy" style="max-height: 520px;">
@@ -101,7 +102,7 @@
 
   <script>
   /* =================== 기본 설정 =================== */
-  const OAUTH_CLIENT_ID = "18228268359-iifm4ck3j9kqj74eh1p90tco1k2mbpi0.apps.googleusercontent.com"; // ← 사용 중이던 ID
+  const OAUTH_CLIENT_ID = "18228268359-iifm4ck3j9kqj74eh1p90tco1k2mbpi0.apps.googleusercontent.com"; // 본인 OAuth Client ID
   const OAUTH_SCOPES   = "https://www.googleapis.com/auth/spreadsheets";
 
   let tokenClient=null, oauthReady=false;
@@ -191,31 +192,22 @@
   async function clearRange(spreadsheetId, range){
     return await gapi.client.sheets.spreadsheets.values.clear({ spreadsheetId, range });
   }
-
-  // ✅ 시트 기록: B2:N만 초기화/업데이트 (N열까지만)
   async function writeFromB2(values){
     const spreadsheetId = parseSpreadsheetId($('#sheetUrl').value);
     if(!spreadsheetId) { toast('스프레드시트 URL/ID를 입력하세요','error'); throw new Error('no sheet'); }
     const sheetName = ($('#rangeA1').value.trim() || 'Sheet1');
     const valueInputOption = $('#valueInputOption').value;
 
-    // 1) B2:N 비우기 (이제 O는 건드리지 않음)
+    // ✅ N열까지만 사용
     await clearRange(spreadsheetId, `${sheetName}!B2:N`);
 
-    // 2) 내부 배열(A..O)에서 B..N만 잘라 기록 (index 1..13)
-    const valuesBN = values.map(r=>{
-      const row=Array.isArray(r)?r:[];
-      const sl=row.slice(1,14);             // B..N (end-exclusive 14)
-      while(sl.length<13) sl.push('');      // B~N 13칸 보장
-      return sl;
-    });
-
-    // 3) B2:N에 덮어쓰기
+    // values는 A..N(14열) 구조 → B..N(13열)만 전송
+    const valuesBN = values.map(r=>{ const row=Array.isArray(r)?r:[]; const sl=row.slice(1,14); while(sl.length<13) sl.push(''); return sl; });
     const res = await gapi.client.sheets.spreadsheets.values.update({
       spreadsheetId,
-      range: `${sheetName}!B2:N`,
+      range: `${sheetName}!B2`,
       valueInputOption,
-      resource: { range: `${sheetName}!B2:N`, majorDimension:'ROWS', values: valuesBN }
+      resource: { range: `${sheetName}!B2`, majorDimension:'ROWS', values: valuesBN }
     });
     return res.result?.updatedRows ?? valuesBN.length;
   }
@@ -244,15 +236,16 @@
 
   /* =================== 시트 헤더 & 공통 =================== */
   function buildHeader(){
-    return ['A','B','C','D','E','F','G','H(결제금액)','I(상태)','J','K(결제시간)','L(결제수단)','M(환불금액)','N(환불일시)','O(예비)'];
+    // A..N (14열) — 실제 전송은 B..N만
+    return ['A','B','C','D','E','F','G','H(결제금액)','I(상태)','J','K(결제시간)','L(결제수단)','M(환불금액)','N(환불일시)'];
   }
 
-  // ===== 카드: A..J → B..K, L='신용카드', M/N = CSV K/L 유지(환불정보 등), K오름차순
+  // ===== 카드: A..J → B..K, L='신용카드', M/N = CSV K/L 유지(카드 환불 유지), K오름차순
   function processCardRows(rows, skipHeader=true){
     const out=[]; const start=skipHeader?1:0;
     for(let i=start;i<rows.length;i++){
       const r=rows[i]||[]; if(r.length===0 || r.every(x=>String(x).trim()==='')) continue;
-      const o=ensureArrayLen(15);
+      const o=ensureArrayLen(14); // A..N
       for(let j=0;j<10;j++){ o[1+j]=r[j]??''; } // B..K
       o[11]='신용카드';        // L
       o[12]= r[10] ?? o[12];  // M ← 카드 CSV K (환불금액 등 원본)
@@ -263,20 +256,22 @@
     return out;
   }
 
-  // ===== 계좌: tickets(입출금) + responses(이메일/연락처 보강) — 출금=환불로 M/N 채우기
+  // ===== 계좌: tickets(입출금) + responses(옵션) — C열 이름키, 출금=환불로 M/N 채우기
   function makeBankRows(tickets, responses, skipT=true, skipR=true){
     if(!tickets.length) return [];
-    const tHead=tickets[0]||[];
-    const cDate = findColIndex(tHead, ['일시','거래일시','거래시간','승인일시','처리일시']);
-    const cAmt  = findColIndex(tHead, ['금액','거래금액','입금액','출금액']);
-    const cStat = findColIndex(tHead, ['상태','거래구분','입출금','구분']);
-    let   cName = findColIndex(tHead, ['보낸분/받는분','거래상대명','거래처','성명']);
-    const cPlace= findColIndex(tHead, ['사용처','적요','계좌적요','내용']);
 
+    // 헤더 탐색 (날짜/금액/구분만 동적 탐색), 이름은 "무조건 C열(index 2)"
+    const tHead=tickets[0]||[];
+    const cDate = findColIndex(tHead, ['일시','거래일시','거래시간','승인일시','처리일시','날짜','date']);
+    const cAmt  = findColIndex(tHead, ['금액','거래금액','입금액','출금액','금액(원)','amount']);
+    const cStat = findColIndex(tHead, ['상태','거래구분','입출금','구분','type']);
+    const cName = 2; // ★ 사용자 지시: C열을 이름키로 고정 사용
+
+    // responses로 이메일/연락처 보강(선택)
     const rHead=responses[0]||[];
-    const rName = findColIndex(rHead, ['성함','이름','신청자']);
+    const rName = findColIndex(rHead, ['성함','이름','신청자','name']);
     const rEmail= findColIndex(rHead, ['이메일','email']);
-    const rPhone= findColIndex(rHead, ['연락처','전화','휴대폰']);
+    const rPhone= findColIndex(rHead, ['연락처','전화','휴대폰','phone']);
 
     const respMap=new Map();
     const rStart=skipR?1:0;
@@ -288,39 +283,41 @@
       }
     }
 
-    const depByName=new Map();
-    const refByName=new Map();
+    // 이름별 입금/환불 분리
+    const depByName=new Map(); // nameN → [{when, paid, row}]
+    const refByName=new Map(); // nameN → [{when, amt}]
     const tStart=skipT?1:0;
 
     for(let i=tStart;i<tickets.length;i++){
       const r=tickets[i]||[]; if(r.every(x=>String(x).trim()==='')) continue;
-      const statRaw=(cStat>=0?String(r[cStat]):'').trim();
-      const isDeposit=/입금/.test(statRaw) || /수입|받음|입금완료/.test(statRaw);
-      const isWithdraw=/출금/.test(statRaw) || /환불|지출|보냄/.test(statRaw);
 
-      let name = cName>=0 ? r[cName] : '';
-      if(!name && cPlace>=0){
-        const s=String(r[cPlace]||''); const m=s.split('←'); name=(m[0]||'').trim();
-      }
-      const nameN=normName(name);
+      const nameRaw = r[cName] ?? '';
+      const nameN   = normName(nameRaw);
+      if(!nameN) continue;
+
+      // 구분
+      const statRaw=(cStat>=0?String(r[cStat]):'').trim();
+      const isDeposit = /입금/.test(statRaw) || /수입|받음|입금완료|deposit/i.test(statRaw);
+      const isWithdraw= /출금/.test(statRaw) || /환불|지출|보냄|withdraw/i.test(statRaw);
+
+      // 금액/일시
       const when = cDate>=0 ? (r[cDate]||'') : '';
       const amt  = Math.abs(parseMoney(cAmt>=0 ? r[cAmt] : 0));
-      if(!nameN) continue;
 
       if(isDeposit){
         const meta=respMap.get(nameN)||{email:'',phone:''};
-        const row=ensureArrayLen(15);
-        row[3]= name || '';
-        row[4]= meta.phone || '';
-        row[5]= meta.email || '';
-        row[6]= '강의';
-        row[7]= amt;              // H 결제금액(+)
-        row[8]= '결제완료';
-        row[9]= '면세';
-        row[10]= when;            // 입금일시
-        row[11]= '계좌이체';
-        row[12]= '';              // 환불금액(후처리)
-        row[13]= '';              // 환불일시(후처리)
+        const row=ensureArrayLen(14); // A..N
+        row[3]= nameRaw || '';        // D 구매자
+        row[4]= meta.phone || '';     // E 연락처(옵션)
+        row[5]= meta.email || '';     // F 이메일(옵션)
+        row[6]= '강의';               // G 품목(샘플)
+        row[7]= amt;                  // H 결제금액(+)
+        row[8]= '결제완료';           // I 상태 (후처리에서 환불됨/부분환불로 변경 가능)
+        row[9]= '면세';               // J
+        row[10]= when;                // K 결제시간(=입금일시)
+        row[11]= '계좌이체';          // L 결제수단
+        row[12]= '';                  // M 환불금액 (후처리)
+        row[13]= '';                  // N 환불일시 (후처리)
         (depByName.get(nameN) || depByName.set(nameN,[]).get(nameN)).push({when, paid:amt, row});
       }else if(isWithdraw){
         const rec={when, amt:amt};
@@ -328,11 +325,11 @@
       }
     }
 
+    // 이름별로 입금과 출금을 순서대로 매칭 → M/N 채우기
     const out=[];
     for(const [nameN, deps] of depByName.entries()){
       const refunds=(refByName.get(nameN)||[]).sort((a,b)=> getTimeFromAny(a.when)-getTimeFromAny(b.when));
       const deposits=deps.sort((a,b)=> getTimeFromAny(a.when)-getTimeFromAny(b.when));
-
       let ri=0;
       for(const d of deposits){
         let remain=d.paid, rsum=0, rdate='';
@@ -342,20 +339,19 @@
           rf.amt-=take; remain-=take; rsum+=take; rdate=rf.when;
           if(rf.amt===0) ri++;
         }
-        if(rsum>0){ d.row[12]=rsum; d.row[13]=rdate; }                  // M/N
+        if(rsum>0){ d.row[12]=rsum; d.row[13]=rdate; } // M/N
         d.row[8] = rsum===0 ? '결제완료' : (rsum>=d.paid ? '환불됨' : '부분환불');
         out.push(d.row);
       }
     }
 
+    // K 오름차순(오래된→최신)
     out.sort((a,b)=> (getTimeFromAny(a[10])||Infinity) - (getTimeFromAny(b[10])||Infinity));
     return out;
   }
 
   /* =================== 빌드 & 프리뷰 =================== */
-  function buildHeader(){
-    return ['A','B','C','D','E','F','G','H(결제금액)','I(상태)','J','K(결제시간)','L(결제수단)','M(환불금액)','N(환불일시)','O(예비)'];
-  }
+  function buildHeaderRows(){ return [buildHeader()]; }
 
   function buildFinalRows(){
     const header=buildHeader();
@@ -404,7 +400,7 @@
         csvCard=await readCsv(f);
         const cnt=csvCard.filter(r=>Array.isArray(r)&&r.some(c=>String(c).trim()!=='')).length;
         toast(`카드 CSV 로드: ${csvCard.length}행 (유효 ${cnt}행)`, cnt?'ok':'error');
-      }catch(err){ console.error(err); toast('카드 CSV 읽기 실패','error'); } finally{ e.target.value=''; }
+      }catch(err){ console.error(err); toast('카드 CSV 읽기 실패','error'); }
     }, {capture:true});
 
     $('#csvTicket').addEventListener('change', async (e)=>{
@@ -412,7 +408,7 @@
         csvTickets=await readCsv(f);
         const cnt=csvTickets.filter(r=>Array.isArray(r)&&r.some(c=>String(c).trim()!=='')).length;
         toast(`tickets 로드: ${csvTickets.length}행 (유효 ${cnt}행)`, cnt?'ok':'error');
-      }catch(err){ console.error(err); toast('tickets 읽기 실패','error'); } finally{ e.target.value=''; }
+      }catch(err){ console.error(err); toast('tickets 읽기 실패','error'); }
     }, {capture:true});
 
     $('#csvResp').addEventListener('change', async (e)=>{
@@ -420,14 +416,14 @@
         csvResp=await readCsv(f);
         const cnt=csvResp.filter(r=>Array.isArray(r)&&r.some(c=>String(c).trim()!=='')).length;
         toast(`responses 로드: ${csvResp.length}행 (유효 ${cnt}행)`, cnt?'ok':'error');
-      }catch(err){ console.error(err); toast('responses 읽기 실패','error'); } finally{ e.target.value=''; }
+      }catch(err){ console.error(err); toast('responses 읽기 실패','error'); }
     }, {capture:true});
 
     // 미리보기
     $('#btnPreviewCsv').addEventListener('click', (e)=>{
       e.preventDefault();
       try{
-        if(!csvCard.length && !csvTickets.length){ parsedRows=[buildHeader()]; renderPreview(parsedRows); toast('CSV를 업로드하세요 (헤더만 표시)','error'); return; }
+        if(!csvCard.length && !csvTickets.length){ parsedRows=buildHeaderRows(); renderPreview(parsedRows); toast('CSV를 업로드하세요 (헤더만 표시)','error'); return; }
         buildFinalRows();
         let rows=parsedRows;
         if($('#optMaskPhone').checked) rows=maskPhones(rows);
@@ -450,7 +446,6 @@
     $('#connectBtn').addEventListener('click', async (e)=>{
       e.preventDefault();
       try{
-        if(OAUTH_CLIENT_ID.startsWith('REPLACE_WITH')){ toast('OAuth 클라이언트 ID를 설정해 주세요.','error'); return; }
         await ensureGapiLoaded(); await ensureAuth(); $('#btnSend').disabled=false;
       }catch(err){ console.error(err); toast('Google 연결 실패','error'); }
     });
