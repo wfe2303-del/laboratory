@@ -2,128 +2,187 @@
 <html lang="ko">
 <head>
   <meta charset="utf-8" />
-  <title>코주부 결제자 명단 테스트</title>
+  <title>코주부 결제자 명단 검색</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
   <style>
-    table { border-collapse: collapse; font-size:12px; }
+    table { border-collapse: collapse; font-size: 12px; }
     th, td { border:1px solid #e5e7eb; padding:4px 6px; white-space:nowrap; }
+    th { background:#f1f5f9; }
+    .highlight { background:#fef3c7; }
   </style>
 </head>
 <body class="bg-slate-50 text-slate-900">
-  <div class="max-w-5xl mx-auto p-4 space-y-4">
-    <h1 class="text-lg font-bold">코주부 결제자 명단 호출 테스트</h1>
+  <div class="max-w-6xl mx-auto p-4 space-y-4">
 
-    <!-- 🔴 호출 버튼 / 상태 표시 -->
-    <div class="flex items-center gap-3">
-      <button id="btnFetchToss" class="px-3 py-2 rounded-lg bg-blue-600 text-white text-sm hover:bg-blue-700">
-        결제자 명단 불러오기 (fetch)
-      </button>
-      <span id="tossStatus" class="text-xs text-slate-600"></span>
-    </div>
+    <header class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+      <div>
+        <h1 class="text-lg font-bold">코주부 결제자 명단 검색</h1>
+        <p class="text-xs text-slate-500 mt-1">
+          Apps Script 프록시를 통해 <code>toss-customers</code> CSV를 불러와 검색합니다.
+        </p>
+      </div>
+      <div class="flex flex-wrap items-center gap-2">
+        <button id="btnFetch"
+          class="px-3 py-2 text-sm rounded-lg bg-blue-600 text-white hover:bg-blue-700">
+          결제자 명단 불러오기
+        </button>
+        <span id="status" class="text-xs text-slate-600"></span>
+      </div>
+    </header>
 
-    <!-- 🔴 응답 원문(최대 일부만) -->
-    <section class="bg-white border border-slate-200 rounded-lg p-3">
-      <h2 class="text-sm font-semibold mb-1">원문 응답 (text)</h2>
-      <pre id="tossRaw" class="text-xs overflow-auto max-h-48 bg-slate-50 p-2 rounded"></pre>
+    <!-- 검색 / 필터 영역 -->
+    <section class="bg-white border border-slate-200 rounded-xl p-3 flex flex-wrap gap-3 items-center">
+      <div class="flex-1 min-w-[180px]">
+        <label class="block text-xs text-slate-500 mb-1">검색어 (이름, 연락처, 강의명 등 전체열 검색)</label>
+        <input id="searchInput" type="text"
+               class="w-full border border-slate-200 rounded-md px-3 py-1.5 text-sm"
+               placeholder="예: 홍길동, 010-1234, 강의명 일부 등" />
+      </div>
+      <div class="flex items-center gap-2 text-xs text-slate-500">
+        <span id="countInfo">데이터 0행</span>
+        <button id="btnClearSearch"
+                class="px-2 py-1 border border-slate-300 rounded-md text-xs bg-slate-50 hover:bg-slate-100">
+          검색 초기화
+        </button>
+      </div>
     </section>
 
-    <!-- 🔴 CSV로 보인다면 파싱해서 표로 보여줌 -->
-    <section class="bg-white border border-slate-200 rounded-lg p-3">
-      <h2 class="text-sm font-semibold mb-1">파싱된 테이블 (CSV일 경우)</h2>
-      <div class="overflow-auto max-h-96">
-        <table id="tossTable"></table>
+    <!-- 결과 테이블 -->
+    <section class="bg-white border border-slate-200 rounded-xl p-3">
+      <div class="mb-2 text-xs text-slate-500 flex justify-between items-center">
+        <span>결제자 리스트</span>
+        <span id="pageInfo"></span>
+      </div>
+      <div class="overflow-auto max-h-[520px]">
+        <table id="resultTable" class="w-full"></table>
       </div>
     </section>
   </div>
 
   <script>
-    // 코주부 toss 고객 리스트 URL (curl에서 쓰던 거)
-    const TOSS_URL = "https://www.cojooboo.co.kr/admin/toss-customers?type=COURSE&_rsc=18xc8";
+    // ✅ 1) 여기만 네 Apps Script 웹앱 URL로 바꾸면 됨
+    const PROXY_URL = "https://script.google.com/macros/s/AKfycbzFVsevRmrhenPcq-Fo9KvLQt_WsJ7Y6Jrq56wece_G3uXd7lT7ntYz8A4gBXNdWQDyZw/exec";
 
-    const $ = (q) => document.querySelector(q);
+    const $  = (q) => document.querySelector(q);
 
-    async function fetchTossCustomers() {
-      const statusEl = $("#tossStatus");
-      const rawEl    = $("#tossRaw");
-      const tableEl  = $("#tossTable");
+    let rawRows = [];      // CSV 전체 (배열의 배열)
+    let header  = [];      // 첫 행 (헤더)
+    let rows    = [];      // 헤더 제외 실제 데이터
+    let filteredRows = []; // 검색 필터링 결과
 
-      statusEl.textContent = "불러오는 중...";
-      rawEl.textContent    = "";
-      tableEl.innerHTML    = "";
+    function setStatus(msg) {
+      $("#status").textContent = msg || "";
+    }
 
+    function updateCountInfo() {
+      const total = rows.length;
+      const shown = filteredRows.length;
+      $("#countInfo").textContent =
+        total === 0
+          ? "데이터 0행"
+          : `총 ${total}행 중 ${shown}행 표시`;
+    }
+
+    function renderTable() {
+      const table = $("#resultTable");
+      table.innerHTML = "";
+      if (!header.length && !filteredRows.length) return;
+
+      const thead = document.createElement("thead");
+      const trHead = document.createElement("tr");
+      header.forEach(h => {
+        const th = document.createElement("th");
+        th.textContent = h || "";
+        trHead.appendChild(th);
+      });
+      thead.appendChild(trHead);
+
+      const tbody = document.createElement("tbody");
+      filteredRows.forEach(row => {
+        const tr = document.createElement("tr");
+        header.forEach((_, idx) => {
+          const td = document.createElement("td");
+          td.textContent = (row[idx] ?? "").toString();
+          tr.appendChild(td);
+        });
+        tbody.appendChild(tr);
+      });
+
+      table.appendChild(thead);
+      table.appendChild(tbody);
+
+      $("#pageInfo").textContent = filteredRows.length
+        ? `${filteredRows.length} rows`
+        : "";
+    }
+
+    function applySearch() {
+      const q = $("#searchInput").value.trim().toLowerCase();
+      if (!q) {
+        filteredRows = rows.slice();
+        updateCountInfo();
+        renderTable();
+        return;
+      }
+
+      filteredRows = rows.filter(row =>
+        row.some(cell =>
+          (cell ?? "").toString().toLowerCase().includes(q)
+        )
+      );
+      updateCountInfo();
+      renderTable();
+    }
+
+    async function fetchCustomers() {
       try {
-        // 1) 그냥 fetch – CORS/쿠키 제한 없다는 가정
-        const res = await fetch(TOSS_URL);
-        if (!res.ok) {
-          throw new Error("HTTP " + res.status);
-        }
+        setStatus("불러오는 중...");
+        $("#resultTable").innerHTML = "";
+        $("#pageInfo").textContent = "";
+        $("#countInfo").textContent = "데이터 0행";
 
-        // 2) 응답을 텍스트로 받기
+        const res = await fetch(PROXY_URL);
+        if (!res.ok) throw new Error("HTTP " + res.status);
         const text = await res.text();
 
-        // 원문을 일부만 보여주기 (길어질 수 있으니까 5000자 제한)
-        rawEl.textContent = text.slice(0, 5000);
-        
-        // 3) 응답 타입 대충 판별
-        const trimmed = text.trim();
-        if (trimmed.startsWith("<")) {
-          // HTML일 가능성이 높음 → 일단은 그냥 원문만 보여주고 종료
-          statusEl.textContent = "HTML 응답 수신 (표 파싱은 안 함 · raw만 표시)";
-          return;
-        }
-
-        // 4) HTML이 아니면 CSV라고 가정하고 Papaparse로 파싱
-        const parsed = Papa.parse(text, {
-          skipEmptyLines: "greedy"
-        });
-
+        const parsed = Papa.parse(text, { skipEmptyLines: "greedy" });
         if (!parsed.data || !parsed.data.length) {
-          statusEl.textContent = "응답은 받았지만 CSV로 파싱할 수 있는 데이터가 없음";
-          return;
+          throw new Error("CSV 데이터가 비어 있습니다");
         }
+        rawRows = parsed.data;
 
-        // 5) 간단하게 테이블 렌더링
-        const rows = parsed.data;
-        const header = rows[0];
-        const body   = rows.slice(1);
+        // 1행 헤더, 나머지는 데이터
+        header = rawRows[0].map(x => (x ?? "").toString());
+        rows   = rawRows.slice(1);
 
-        const thead = document.createElement("thead");
-        const trHead = document.createElement("tr");
-        (header || []).forEach((h, idx) => {
-          const th = document.createElement("th");
-          th.textContent = h || ("컬럼" + (idx+1));
-          th.className = "bg-slate-100 text-slate-700";
-          trHead.appendChild(th);
-        });
-        thead.appendChild(trHead);
+        filteredRows = rows.slice();
+        updateCountInfo();
+        renderTable();
 
-        const tbody = document.createElement("tbody");
-        body.forEach(row => {
-          const tr = document.createElement("tr");
-          (row || []).forEach(cell => {
-            const td = document.createElement("td");
-            td.textContent = cell ?? "";
-            tr.appendChild(td);
-          });
-          tbody.appendChild(tr);
-        });
-
-        tableEl.appendChild(thead);
-        tableEl.appendChild(tbody);
-
-        statusEl.textContent = `불러오기 완료: 총 ${rows.length}행 (헤더 포함)`;
-
+        setStatus("불러오기 완료");
       } catch (err) {
         console.error(err);
-        $("#tossStatus").textContent = "호출 실패: " + err.message;
+        setStatus("호출 실패: " + (err.message || err));
+        alert("결제자 명단 불러오기 실패\n" + (err.message || err));
       }
     }
 
     document.addEventListener("DOMContentLoaded", () => {
-      $("#btnFetchToss").addEventListener("click", (e) => {
+      $("#btnFetch").addEventListener("click", (e) => {
         e.preventDefault();
-        fetchTossCustomers();
+        fetchCustomers();
+      });
+
+      $("#searchInput").addEventListener("input", () => {
+        applySearch();
+      });
+
+      $("#btnClearSearch").addEventListener("click", (e) => {
+        e.preventDefault();
+        $("#searchInput").value = "";
+        applySearch();
       });
     });
   </script>
