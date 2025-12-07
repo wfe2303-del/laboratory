@@ -1,108 +1,174 @@
-<script>
-  // ✅ 여기만 네 Apps Script exec URL로 바꾸기
-  const PROXY_URL = "https://script.google.com/macros/s/AKfycbyxy7MyOhgeO1IoVhgqAI6-j4-Vks52a2i28xodKSXA2Bws0_AcQKZDzAjJsS3WvoF-Ww/exec";
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <title>코주부 결제자 명단 검색 (Apps Script JSON)</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    table { border-collapse: collapse; font-size: 12px; }
+    th, td { border:1px solid #e5e7eb; padding:4px 6px; white-space:nowrap; }
+    th { background:#f1f5f9; }
+  </style>
+</head>
+<body class="bg-slate-50 text-slate-900">
+  <div class="max-w-6xl mx-auto p-4 space-y-4">
 
-  const $  = (q) => document.querySelector(q);
+    <header class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+      <div>
+        <h1 class="text-lg font-bold">코주부 결제자 명단 검색</h1>
+        <p class="text-xs text-slate-500 mt-1">
+          Apps Script 프록시(JSON)를 통해 toss-customers 데이터를 검색합니다.
+        </p>
+      </div>
+      <div class="flex flex-wrap items-center gap-2">
+        <button id="btnFetch"
+          class="px-3 py-2 text-sm rounded-lg bg-blue-600 text-white hover:bg-blue-700">
+          결제자 명단 불러오기
+        </button>
+        <span id="status" class="text-xs text-slate-600"></span>
+      </div>
+    </header>
 
-  let header = [];
-  let rows   = [];
-  let lastTotal = 0;
+    <!-- 검색 / 정보 -->
+    <section class="bg-white border border-slate-200 rounded-xl p-3 flex flex-wrap gap-3 items-center">
+      <div class="flex-1 min-w-[180px]">
+        <label class="block text-xs text-slate-500 mb-1">
+          검색어 (이름, 연락처, 강의명 등 전체열 검색)
+        </label>
+        <input id="searchInput" type="text"
+               class="w-full border border-slate-200 rounded-md px-3 py-1.5 text-sm"
+               placeholder="예: 홍길동, 010-1234, 강의명 일부 등" />
+      </div>
+      <div class="flex items-center gap-2 text-xs text-slate-500">
+        <span id="countInfo">데이터 0행</span>
+        <button id="btnClearSearch"
+                class="px-2 py-1 border border-slate-300 rounded-md text-xs bg-slate-50 hover:bg-slate-100">
+          검색 초기화
+        </button>
+      </div>
+    </section>
 
-  function setStatus(msg) {
-    $("#status").textContent = msg || "";
-  }
+    <!-- 결과 테이블 -->
+    <section class="bg-white border border-slate-200 rounded-xl p-3">
+      <div class="mb-2 text-xs text-slate-500 flex justify-between items-center">
+        <span>결제자 리스트</span>
+        <span id="pageInfo"></span>
+      </div>
+      <div class="overflow-auto max-h-[520px]">
+        <table id="resultTable" class="w-full"></table>
+      </div>
+    </section>
 
-  function updateCountInfo() {
-    if (!rows.length) {
-      $("#countInfo").textContent = "데이터 0행";
-      return;
+  </div>
+
+  <script>
+    // 🔴 여기만 네 Apps Script exec URL로 바꾸면 됨
+    // 예) "https://script.google.com/macros/s/AKfycbyxy7MyOhgeO1IoVhgqAI6-j4-Vks52a2i28xodKSXA2Bws0_AcQKZDzAjJsS3WvoF-Ww/exec"
+    const PROXY_URL = "https://script.google.com/macros/s/여기-웹앱-ID/exec";
+
+    const $  = (q) => document.querySelector(q);
+
+    let header = [];
+    let rows   = [];
+    let lastTotal = 0;
+
+    function setStatus(msg) {
+      $("#status").textContent = msg || "";
     }
-    const shown = rows.length;
-    const total = lastTotal || shown;
-    $("#countInfo").textContent = `총 ${total}행 중 ${shown}행 표시 (최대 ${shown}행 불러옴)`;
-  }
 
-  function renderTable() {
-    const table = $("#resultTable");
-    table.innerHTML = "";
-    if (!header.length) return;
+    function updateCountInfo() {
+      if (!rows.length) {
+        $("#countInfo").textContent = "데이터 0행";
+        return;
+      }
+      const shown = rows.length;
+      const total = lastTotal || shown;
+      $("#countInfo").textContent =
+        `총 ${total}행 중 ${shown}행 표시 (최대 ${shown}행 불러옴)`;
+    }
 
-    const thead = document.createElement("thead");
-    const trHead = document.createElement("tr");
-    header.forEach(h => {
-      const th = document.createElement("th");
-      th.textContent = h || "";
-      trHead.appendChild(th);
-    });
-    thead.appendChild(trHead);
+    function renderTable() {
+      const table = $("#resultTable");
+      table.innerHTML = "";
+      if (!header.length) return;
 
-    const tbody = document.createElement("tbody");
-    rows.forEach(row => {
-      const tr = document.createElement("tr");
-      header.forEach((_, idx) => {
-        const td = document.createElement("td");
-        td.textContent = (row[idx] ?? "").toString();
-        tr.appendChild(td);
+      const thead = document.createElement("thead");
+      const trHead = document.createElement("tr");
+      header.forEach(h => {
+        const th = document.createElement("th");
+        th.textContent = h || "";
+        trHead.appendChild(th);
       });
-      tbody.appendChild(tr);
-    });
+      thead.appendChild(trHead);
 
-    table.appendChild(thead);
-    table.appendChild(tbody);
+      const tbody = document.createElement("tbody");
+      rows.forEach(row => {
+        const tr = document.createElement("tr");
+        header.forEach((_, idx) => {
+          const td = document.createElement("td");
+          td.textContent = (row[idx] ?? "").toString();
+          tr.appendChild(td);
+        });
+        tbody.appendChild(tr);
+      });
 
-    $("#pageInfo").textContent = rows.length ? `${rows.length} rows` : "";
-  }
+      table.appendChild(thead);
+      table.appendChild(tbody);
 
-  async function searchCustomers() {
-    try {
-      const q = $("#searchInput").value.trim();
-      setStatus("검색 중...");
-      $("#resultTable").innerHTML = "";
-      $("#pageInfo").textContent = "";
-      $("#countInfo").textContent = "데이터 0행";
-
-      // GET /exec?q=검색어
-      const url = PROXY_URL + "?q=" + encodeURIComponent(q);
-      const res = await fetch(url);
-      if (!res.ok) throw new Error("HTTP " + res.status);
-
-      const data = await res.json(); // {header, rows, total}
-
-      header = data.header || [];
-      rows   = data.rows   || [];
-      lastTotal = data.total || rows.length;
-
-      updateCountInfo();
-      renderTable();
-
-      setStatus("검색 완료");
-    } catch (err) {
-      console.error(err);
-      setStatus("호출 실패: " + (err.message || err));
-      alert("결제자 명단 불러오기 실패\n" + (err.message || err));
+      $("#pageInfo").textContent = rows.length ? `${rows.length} rows` : "";
     }
-  }
 
-  document.addEventListener("DOMContentLoaded", () => {
-    // 1) '결제자 명단 불러오기' 버튼 -> 현재 검색어로 검색
-    $("#btnFetch").addEventListener("click", (e) => {
-      e.preventDefault();
-      searchCustomers();
-    });
+    async function searchCustomers() {
+      try {
+        const q = $("#searchInput").value.trim();
+        setStatus("검색 중...");
+        $("#resultTable").innerHTML = "";
+        $("#pageInfo").textContent = "";
+        $("#countInfo").textContent = "데이터 0행";
 
-    // 2) 엔터 키로도 검색
-    $("#searchInput").addEventListener("keydown", (e) => {
-      if (e.key === "Enter") {
+        const url = PROXY_URL + "?q=" + encodeURIComponent(q);
+        const res = await fetch(url);
+        if (!res.ok) throw new Error("HTTP " + res.status);
+
+        // Apps Script 에서 {header, rows, total} 구조로 보내고 있음
+        const data = await res.json();
+        console.log("응답 JSON:", data);   // 디버깅용
+
+        header = data.header || [];
+        rows   = data.rows   || [];
+        lastTotal = data.total || rows.length;
+
+        updateCountInfo();
+        renderTable();
+
+        setStatus("검색 완료");
+      } catch (err) {
+        console.error("searchCustomers error:", err);
+        setStatus("호출 실패: " + (err.message || err));
+        alert("결제자 명단 불러오기 실패\n" + (err.message || err));
+      }
+    }
+
+    document.addEventListener("DOMContentLoaded", () => {
+      $("#btnFetch").addEventListener("click", (e) => {
         e.preventDefault();
         searchCustomers();
-      }
-    });
+      });
 
-    // 3) 검색 초기화
-    $("#btnClearSearch").addEventListener("click", (e) => {
-      e.preventDefault();
-      $("#searchInput").value = "";
-      searchCustomers(); // 빈 검색어로 다시 호출 = 전체(앞부분만) 조회
+      $("#searchInput").addEventListener("keydown", (e) => {
+        if (e.key === "Enter") {
+          e.preventDefault();
+          searchCustomers();
+        }
+      });
+
+      $("#btnClearSearch").addEventListener("click", (e) => {
+        e.preventDefault();
+        $("#searchInput").value = "";
+        searchCustomers();   // 빈 검색어로 전체(앞부분) 조회
+      });
     });
-  });
-</script>
+  </script>
+</body>
+</html>
