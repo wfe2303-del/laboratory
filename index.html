@@ -88,9 +88,22 @@
 
     <!-- Preview -->
     <section class="bg-white rounded-xl border border-slate-200 p-4">
-      <div class="flex items-center justify-between mb-3">
-        <h2 class="font-semibold">정리 시트 미리보기 <span class="text-xs text-slate-400">(K열 오름차순 · 카드 후 계좌)</span></h2>
-        <div class="text-xs text-slate-500" id="summary"></div>
+      <div class="flex items-center justify-between mb-3 gap-3">
+        <div>
+          <h2 class="font-semibold">정리 시트 미리보기 <span class="text-xs text-slate-400">(K열 오름차순 · 카드 후 계좌)</span></h2>
+          <div class="text-xs text-slate-500" id="summary"></div>
+        </div>
+        <!-- 🔍 검색 UI 추가 -->
+        <div class="flex items-center gap-2">
+          <input id="filterText" type="text" class="px-2 py-1 text-xs border border-slate-300 rounded-lg"
+                 placeholder="이름/연락처/강의명 검색" />
+          <button id="btnApplyFilter" type="button" class="px-2 py-1 text-xs rounded-lg border border-slate-300 bg-white hover:bg-slate-100">
+            검색 적용
+          </button>
+          <button id="btnClearFilter" type="button" class="px-2 py-1 text-xs rounded-lg border border-slate-300 bg-white hover:bg-slate-100">
+            검색 해제
+          </button>
+        </div>
       </div>
       <div class="scroll-xy" style="max-height: 520px;">
         <table id="previewTable" class="preview text-sm"></table>
@@ -106,8 +119,9 @@
   const OAUTH_SCOPES   = "https://www.googleapis.com/auth/spreadsheets";
 
   let tokenClient=null, oauthReady=false;
-  let parsedRows=[];                 // 헤더+본체
+  let parsedRows=[];                 // 헤더+본체 (full 데이터)
   let csvCard=[], csvTickets=[], csvResp=[];
+  let filteredRows=null;             // 검색 후 결과(헤더+본체). 전송에는 아직 사용 X
 
   const $ = (q)=>document.querySelector(q);
   const toast = (msg, type="info")=>{
@@ -218,17 +232,30 @@
       if(!file){ resolve([]); return; }
       Papa.parse(file,{
         complete:(res)=>{
-          let rows=Array.isArray(res.data)?res.data:[];
-          rows=rows.map(r=> Array.isArray(r)?r:[r]);
+          let rows=Array.isArray(res.data)?res.data:[]; rows=rows.map(r=>Array.isArray(r)?r:[r]);
           const cnt=rows.filter(r=> r.some(c=> String(c).trim()!=='')).length;
           if(cnt>0){ resolve(rows); return; }
           const tryEnc=['UTF-8','EUC-KR','CP949','ISO-8859-1']; let idx=0;
           const fr=new FileReader();
-          fr.onload=()=>{ const parsed=Papa.parse(String(fr.result||''),{skipEmptyLines:'greedy'}); let r=Array.isArray(parsed.data)?parsed.data:[]; r=r.map(x=>Array.isArray(x)?x:[x]); const c=r.filter(x=>x.some(y=>String(y).trim()!=='')).length; if(c>0 || idx>=tryEnc.length-1) resolve(r); else { idx++; fr.readAsText(file, tryEnc[idx]); } };
+          fr.onload=()=>{
+            const parsed=Papa.parse(String(fr.result||''),{skipEmptyLines:'greedy'});
+            let r=Array.isArray(parsed.data)?parsed.data:[]; r=r.map(x=>Array.isArray(x)?x:[x]);
+            const c=r.filter(x=>x.some(y=>String(y).trim()!=='')).length;
+            if(c>0 || idx>=tryEnc.length-1) resolve(r); else { idx++; fr.readAsText(file, tryEnc[idx]); }
+          };
           fr.onerror=()=>resolve([]);
           fr.readAsText(file, tryEnc[idx]);
         },
-        error:()=>{ const fr=new FileReader(); fr.onload=()=>{ const parsed=Papa.parse(String(fr.result||''),{skipEmptyLines:'greedy'}); let r=Array.isArray(parsed.data)?parsed.data:[]; r=r.map(x=>Array.isArray(x)?x:[x]); resolve(r); }; fr.onerror=()=>resolve([]); fr.readAsText(file,'UTF-8'); },
+        error:()=>{
+          const fr=new FileReader();
+          fr.onload=()=>{
+            const parsed=Papa.parse(String(fr.result||''),{skipEmptyLines:'greedy'});
+            let r=Array.isArray(parsed.data)?parsed.data:[]; r=r.map(x=>Array.isArray(x)?x:[x]);
+            resolve(r);
+          };
+          fr.onerror=()=>resolve([]);
+          fr.readAsText(file,'UTF-8');
+        },
         skipEmptyLines:'greedy'
       });
     });
@@ -240,7 +267,7 @@
     return ['A','B','C','D','E','F','G','H(결제금액)','I(상태)','J','K(결제시간)','L(결제수단)','M(환불금액)','N(환불일시)'];
   }
 
-  // ===== 카드: A..J → B..K, L='신용카드', M/N = CSV K/L 유지(카드 환불 유지), K오름차순
+  // ===== 카드: A..J → B..K, L='신용카드', M/N = CSV K/L, K오름차순
   function processCardRows(rows, skipHeader=true){
     const out=[]; const start=skipHeader?1:0;
     for(let i=start;i<rows.length;i++){
@@ -265,7 +292,7 @@
     const cDate = findColIndex(tHead, ['일시','거래일시','거래시간','승인일시','처리일시','날짜','date']);
     const cAmt  = findColIndex(tHead, ['금액','거래금액','입금액','출금액','금액(원)','amount']);
     const cStat = findColIndex(tHead, ['상태','거래구분','입출금','구분','type']);
-    const cName = 2; // ★ 사용자 지시: C열을 이름키로 고정 사용
+    const cName = 2; // ★ C열을 이름키로 고정 사용
 
     // responses로 이메일/연락처 보강(선택)
     const rHead=responses[0]||[];
@@ -283,7 +310,6 @@
       }
     }
 
-    // 이름별 입금/환불 분리
     const depByName=new Map(); // nameN → [{when, paid, row}]
     const refByName=new Map(); // nameN → [{when, amt}]
     const tStart=skipT?1:0;
@@ -358,6 +384,7 @@
     const card = csvCard.length ? processCardRows(csvCard, $('#headCard').checked) : [];
     const bank = csvTickets.length ? makeBankRows(csvTickets, csvResp, $('#headTicket').checked, $('#headResp').checked) : [];
     parsedRows=[header, ...card, ...bank]; // 카드(오름차순) 뒤에 계좌(오름차순)
+    filteredRows=null;
     $('#optHasHeader').checked=true;
   }
 
@@ -386,7 +413,39 @@
     }
     table.appendChild(thead); table.appendChild(tbody);
     const bodyRows=Math.max(0, rows.length-(startIdx));
-    $('#summary').textContent=`열 ${colCount} · 데이터 행 ${bodyRows}`;
+    const isFiltered = !!filteredRows && filteredRows.length > 0 && rows === filteredRows;
+    $('#summary').textContent=`열 ${colCount} · 데이터 행 ${bodyRows}${isFiltered ? ' (검색 결과)' : ''}`;
+  }
+
+  /* =================== 검색 기능 =================== */
+  function applyFilter(){
+    if(!parsedRows.length){
+      toast('먼저 정리 미리보기를 실행하세요','error');
+      return;
+    }
+    const q = ($('#filterText').value || '').trim().toLowerCase();
+    if(!q){
+      // 검색어 없으면 전체 데이터로 복원
+      filteredRows = null;
+      let rows = parsedRows;
+      if($('#optMaskPhone').checked) rows = maskPhones(rows);
+      rows = equalizeRowLength(rows);
+      renderPreview(rows);
+      toast('검색 해제, 전체 데이터 표시','ok');
+      return;
+    }
+
+    const header = parsedRows[0];
+    const body = parsedRows.slice(1).filter(row =>
+      row.join(' ').toLowerCase().includes(q)
+    );
+    filteredRows = [header, ...body];
+
+    let rows = filteredRows;
+    if($('#optMaskPhone').checked) rows = maskPhones(rows);
+    rows = equalizeRowLength(rows);
+    renderPreview(rows);
+    toast(`검색 적용: ${body.length}행`, 'ok');
   }
 
   /* =================== 이벤트 =================== */
@@ -423,7 +482,7 @@
     $('#btnPreviewCsv').addEventListener('click', (e)=>{
       e.preventDefault();
       try{
-        if(!csvCard.length && !csvTickets.length){ parsedRows=buildHeaderRows(); renderPreview(parsedRows); toast('CSV를 업로드하세요 (헤더만 표시)','error'); return; }
+        if(!csvCard.length && !csvTickets.length){ parsedRows=buildHeaderRows(); filteredRows=null; renderPreview(parsedRows); toast('CSV를 업로드하세요 (헤더만 표시)','error'); return; }
         buildFinalRows();
         let rows=parsedRows;
         if($('#optMaskPhone').checked) rows=maskPhones(rows);
@@ -433,12 +492,24 @@
       }catch(err){ console.error(err); toast('정리 실패: 콘솔 확인','error'); }
     });
 
+    // 🔍 검색 버튼 이벤트
+    $('#btnApplyFilter').addEventListener('click', (e)=>{
+      e.preventDefault();
+      applyFilter();
+    });
+    $('#btnClearFilter').addEventListener('click', (e)=>{
+      e.preventDefault();
+      $('#filterText').value='';
+      applyFilter();
+    });
+
     // 초기화
     $('#btnClear').addEventListener('click', (e)=>{
       e.preventDefault();
-      csvCard=[]; csvTickets=[]; csvResp=[]; parsedRows=[];
+      csvCard=[]; csvTickets=[]; csvResp=[]; parsedRows=[]; filteredRows=null;
       $('#csvCard').value=''; $('#csvTicket').value=''; $('#csvResp').value='';
       $('#previewTable').innerHTML=''; $('#summary').textContent='';
+      $('#filterText').value='';
       toast('초기화 완료');
     });
 
