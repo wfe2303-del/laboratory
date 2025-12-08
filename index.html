@@ -1,136 +1,543 @@
-<script>
-  // 🔴 여기만 Apps Script exec URL로 바꾸기
-  const PROXY_URL = "https://script.google.com/macros/s/AKfycbwecyIkPVRsPEBMAtYUl0XLNpt0g_4-VMBY7YSLbN65fBSce8M4jwIbv0EblspkSuQr/exec";
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>수강생 시트 자동 업데이트 (카드 + 계좌 · B2~N 전송)</title>
+  <!-- Tailwind -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- PapaParse -->
+  <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
+  <!-- Google Identity Services -->
+  <script src="https://accounts.google.com/gsi/client" async defer></script>
+  <!-- Google API (Sheets) -->
+  <script src="https://apis.google.com/js/api.js" async defer></script>
+  <style>
+    .toast{position:fixed;right:16px;bottom:16px;padding:10px 14px;border-radius:10px;background:#0f172a;color:#fff;opacity:.96;box-shadow:0 6px 20px rgba(0,0,0,.2);z-index:1000}
+    .scroll-xy{overflow:auto}
+    table.preview{border-collapse:collapse}
+    table.preview td,table.preview th{border:1px solid #e5e7eb;padding:8px;white-space:nowrap}
+    .invalid{background:#fef2f2;color:#991b1b}
+    .fname{font-size:12px;color:#475569}
+  </style>
+</head>
+<body class="bg-slate-50 text-slate-900">
+  <div class="max-w-6xl mx-auto p-6">
+    <header class="mb-6">
+      <h1 class="text-xl md:text-2xl font-bold">수강생 시트 자동 업데이트</h1>
+      <p class="text-sm text-slate-600 mt-1">좌: 카드 CSV · 우: 계좌(원장 tickets + 응답 responses). K(결제시간) 기준 오래된→최신 정렬. 전송 시 항상 <b>B2~N</b>만 초기화 후 덮어쓰기.</p>
+    </header>
 
-  const $  = (q) => document.querySelector(q);
+    <section class="grid lg:grid-cols-2 gap-6 mb-6">
+      <!-- 카드 -->
+      <div class="space-y-3 bg-white border border-slate-200 rounded-xl p-4">
+        <h2 class="font-semibold">① 카드결제 CSV</h2>
+        <input id="csvCard" type="file" accept="text/csv,.csv" class="block w-full text-sm" />
+        <div id="nameCard" class="fname"></div>
+        <label class="inline-flex items-center gap-2 text-sm"><input type="checkbox" id="headCard" class="accent-blue-600" checked /> 첫 행은 헤더(건너뛰기)</label>
+      </div>
 
-  let header = [];
-  let rows   = [];
-  let lastTotal = 0;
-  let lastJsonpScript = null; // JSONP 스크립트 태그 기억용
+      <!-- 계좌이체 -->
+      <div class="space-y-3 bg-white border border-slate-200 rounded-xl p-4">
+        <h2 class="font-semibold">② 계좌이체 CSV 2개</h2>
+        <div class="grid sm:grid-cols-2 gap-3">
+          <div>
+            <label class="block text-sm font-semibold mb-1">tickets.csv (입출금 원장)</label>
+            <input id="csvTicket" type="file" accept="text/csv,.csv" class="block w-full text-sm" />
+            <div id="nameTicket" class="fname"></div>
+            <label class="inline-flex items-center gap-2 text-xs mt-1"><input type="checkbox" id="headTicket" class="accent-blue-600" checked /> 첫 행은 헤더</label>
+          </div>
+          <div>
+            <label class="block text-sm font-semibold mb-1">responses.csv (신청/응답)</label>
+            <input id="csvResp" type="file" accept="text/csv,.csv" class="block w-full text-sm" />
+            <div id="nameResp" class="fname"></div>
+            <label class="inline-flex items-center gap-2 text-xs mt-1"><input type="checkbox" id="headResp" class="accent-blue-600" checked /> 첫 행은 헤더</label>
+          </div>
+        </div>
+      </div>
+    </section>
 
-  function setStatus(msg) {
-    $("#status").textContent = msg || "";
+    <!-- 옵션 -->
+    <section class="grid lg:grid-cols-2 gap-6 mb-6">
+      <div class="space-y-3 bg-white border border-slate-200 rounded-xl p-4">
+        <h2 class="font-semibold">미리보기 / 전송 옵션</h2>
+
+        <div class="flex items-center gap-3 mb-2">
+          <label class="inline-flex items-center gap-2 text-sm">
+            <input type="checkbox" id="optHasHeader" class="accent-blue-600" checked /> 첫 행은 헤더
+          </label>
+          <label class="inline-flex items-center gap-2 text-sm">
+            <input type="checkbox" id="optMaskPhone" class="accent-blue-600" /> 전화번호 마스킹(미리보기)
+          </label>
+        </div>
+
+        <div class="grid grid-cols-3 gap-3 items-end">
+          <div class="col-span-3">
+            <label class="block text-sm font-semibold mb-1">Google 시트 URL 또는 ID</label>
+            <input id="sheetUrl" type="text" class="w-full p-3 rounded-lg border border-slate-200 bg-white" placeholder="https://docs.google.com/spreadsheets/d/XXXXXXXXX/edit" />
+          </div>
+          <div class="col-span-2">
+            <label class="block text-sm font-semibold mb-1">시트 선택(드롭다운)</label>
+            <select id="sheetPicker" class="w-full p-3 rounded-lg border border-slate-200 bg-white">
+              <option value="">(먼저 연결 후 ‘시트 목록 불러오기’를 누르세요)</option>
+            </select>
+          </div>
+          <div class="">
+            <button id="btnLoadSheets" class="w-full px-3 py-2 rounded-lg border border-slate-300 bg-white hover:bg-slate-100 text-sm" type="button">시트 목록 불러오기</button>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-3 mt-2">
+          <button id="connectBtn" type="button" class="px-3 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700">Google 계정 연결</button>
+          <select id="valueInputOption" class="p-3 rounded-lg border border-slate-200 bg-white">
+            <option value="USER_ENTERED">USER_ENTERED (권장)</option>
+            <option value="RAW">RAW</option>
+          </select>
+        </div>
+        <div class="text-xs text-slate-500">전송 시 헤더는 자동 제외됩니다. (항상 B2~N 초기화 후 덮어쓰기)</div>
+      </div>
+
+      <div class="flex flex-wrap items-center gap-2">
+        <button id="btnPreviewCsv" type="button" class="px-3 py-2 rounded-lg bg-slate-900 text-white hover:bg-black">정리 미리보기</button>
+        <button id="btnClear" type="button" class="px-3 py-2 rounded-lg border border-slate-300 bg-white hover:bg-slate-100">초기화</button>
+        <button id="btnSend" type="button" class="px-3 py-2 rounded-lg bg-emerald-600 text-white disabled:opacity-50" disabled>Google 시트로 전송</button>
+        <span id="authState" class="text-xs text-slate-600 ml-2">미연결</span>
+      </div>
+    </section>
+
+    <!-- Preview -->
+    <section class="bg-white rounded-xl border border-slate-200 p-4">
+      <div class="flex items-center justify-between mb-3">
+        <h2 class="font-semibold">정리 시트 미리보기 <span class="text-xs text-slate-400">(K열 오름차순 · 카드 후 계좌)</span></h2>
+        <div class="text-xs text-slate-500" id="summary"></div>
+      </div>
+      <div class="scroll-xy" style="max-height: 520px;">
+        <table id="previewTable" class="preview text-sm"></table>
+      </div>
+    </section>
+  </div>
+
+  <div id="toast" class="toast hidden"></div>
+
+  <script>
+  /* =================== 기본 설정 =================== */
+  const OAUTH_CLIENT_ID = "18228268359-iifm4ck3j9kqj74eh1p90tco1k2mbpi0.apps.googleusercontent.com"; // 본인 OAuth 클라ID
+  const OAUTH_SCOPES   = "https://www.googleapis.com/auth/spreadsheets";
+
+  let tokenClient=null, oauthReady=false;
+  let parsedRows=[];                 // 헤더+본체
+  let csvCard=[], csvTickets=[], csvResp=[];
+
+  const $ = (q)=>document.querySelector(q);
+  const toast = (msg, type="info")=>{
+    const el=$("#toast"); if(!el) return;
+    el.textContent=msg; el.classList.remove("hidden");
+    el.style.background = type==='error' ? '#991b1b' : (type==='ok' ? '#065f46' : '#0f172a');
+    setTimeout(()=> el.classList.add("hidden"), 2600);
+  };
+
+  const ensureArrayLen=(len)=>{const a=new Array(len); for(let i=0;i<len;i++) a[i]=''; return a;};
+  const equalizeRowLength=(rows)=>{ if(!rows.length) return rows; const m=rows.reduce((p,r)=>Math.max(p,r.length),0); return rows.map(r=>{const c=r.slice(); while(c.length<m) c.push(''); return c;}); };
+
+  const maskPhones=(rows)=>{
+    const re1=/(\b\d{3})(\d{4})(\d{4}\b)/g, re2=/(\b\d{2,3}-)(\d{3,4})(-\d{4}\b)/g;
+    return rows.map(row=> row.map(cell=>{
+      if(typeof cell!=='string') return cell;
+      let out=cell.replace(re1,(m,a,b,c)=>`${a}****${c}`);
+      out=out.replace(re2,(m,a,b,c)=>`${a}****${c}`);
+      return out;
+    }));
+  };
+
+  const normName=(s)=> String(s||'').trim()
+    .replace(/[\s]*[\(\[\{（【][^)\]\}）】]*[\)\]\}）】]\s*$/,'') // 괄호 끝장식 제거
+    .replace(/[/_\-\s]+$/,'')                                  // 끝 슬래시류 제거
+    .replace(/\s+/g,' ')
+    .trim();
+
+  function parseMoney(v){
+    const s=String(v??'').replace(/[^\d\-\.\,()]/g,'');
+    if(!s) return 0;
+    let neg=false, t=s;
+    if(/\(/.test(t) && /\)/.test(t)) { neg=true; t=t.replace(/[()]/g,''); }
+    t=t.replace(/,/g,'');
+    if(/^-/.test(t)) neg=!neg;
+    const n=parseFloat(t);
+    return (neg?-1:1) * (isNaN(n)?0:n);
   }
 
-  function updateCountInfo() {
-    if (!rows.length) {
-      $("#countInfo").textContent = "데이터 0행";
-      return;
+  function findColIndex(head, names){
+    const H=(head||[]).map(x=>String(x||'').toLowerCase().trim());
+    for(let i=0;i<H.length;i++){
+      for(const nm of names){ if(H[i].includes(String(nm).toLowerCase())) return i; }
     }
-    const shown = rows.length;
-    const total = lastTotal || shown;
-    $("#countInfo").textContent =
-      `총 ${total}행 중 ${shown}행 표시 (최대 ${shown}행 불러옴)`;
+    return -1;
   }
 
-  function renderTable() {
-    const table = $("#resultTable");
-    table.innerHTML = "";
-    if (!header.length) return;
+  /* =================== 날짜 파싱 =================== */
+  function getTimeFromAny(val){
+    if(val===undefined || val===null) return NaN;
+    const s0=String(val).trim(); if(!s0) return NaN;
+    const pm=/오후/.test(s0), am=/오전/.test(s0);
+    const m=s0.match(/(\d{4})\D(\d{1,2})\D(\d{1,2})(?:\D+(\d{1,2})(?::(\d{1,2})(?::(\d{1,2}))?)?)?/);
+    if(m){
+      let [,yy,MM,dd,hh,mm,ss]=m;
+      let H=hh?parseInt(hh,10):0, Mi=mm?parseInt(mm,10):0, S=ss?parseInt(ss,10):0;
+      if(pm && H<12) H+=12; if(am && H===12) H=0;
+      return new Date(+yy, +MM-1, +dd, H, Mi, S).getTime();
+    }
+    const iso=s0.replace(/[./]/g,'-').replace('T',' '); const t=Date.parse(iso);
+    return isNaN(t)?NaN:t;
+  }
 
-    const thead = document.createElement("thead");
-    const trHead = document.createElement("tr");
-    header.forEach(h => {
-      const th = document.createElement("th");
-      th.textContent = h || "";
-      trHead.appendChild(th);
-    });
-    thead.appendChild(trHead);
-
-    const tbody = document.createElement("tbody");
-    rows.forEach(row => {
-      const tr = document.createElement("tr");
-      header.forEach((_, idx) => {
-        const td = document.createElement("td");
-        td.textContent = (row[idx] ?? "").toString();
-        tr.appendChild(td);
+  /* =================== Google API =================== */
+  async function ensureGapiLoaded(){
+    await new Promise(res=>{const chk=()=>{if(window.gapi && gapi.load){res();} else setTimeout(chk,50);}; chk();});
+    await new Promise((res,rej)=>{ gapi.load('client', async ()=>{ try{ await gapi.client.load('https://sheets.googleapis.com/$discovery/rest?version=v4'); res(); }catch(e){ rej(e); } }); });
+  }
+  async function ensureAuth(){
+    if(!window.google?.accounts?.oauth2) throw new Error('GIS not loaded');
+    if(!tokenClient){
+      tokenClient = google.accounts.oauth2.initTokenClient({
+        client_id: OAUTH_CLIENT_ID,
+        scope: OAUTH_SCOPES,
+        callback: (resp)=>{ if(resp?.access_token){ gapi.client.setToken({access_token:resp.access_token}); oauthReady=true; updateAuthUI(); toast('Google 계정 연결 완료','ok'); } else toast('인증 실패','error'); }
       });
+    }
+    if(!oauthReady) tokenClient.requestAccessToken({prompt:'consent'});
+  }
+  function parseSpreadsheetId(input){ if(!input) return ''; const m=input.match(/\/spreadsheets\/d\/([a-zA-Z0-9-_]+)/); return m && m[1] ? m[1] : input.trim(); }
+
+  async function listSheets(spreadsheetId){
+    const res = await gapi.client.sheets.spreadsheets.get({ spreadsheetId, fields: "sheets(properties(title))" });
+    const arr = (res.result?.sheets||[]).map(x=> x.properties?.title).filter(Boolean);
+    return arr;
+  }
+
+  async function clearRange(spreadsheetId, range){
+    return await gapi.client.sheets.spreadsheets.values.clear({ spreadsheetId, range });
+  }
+  async function writeFromB2(values){
+    const spreadsheetId = parseSpreadsheetId($('#sheetUrl').value);
+    if(!spreadsheetId) { toast('스프레드시트 URL/ID를 입력하세요','error'); throw new Error('no sheet'); }
+    const sheetName = ($('#sheetPicker').value || 'Sheet1');
+    const valueInputOption = $('#valueInputOption').value;
+
+    // B2~N 전체 비우기
+    await clearRange(spreadsheetId, `${sheetName}!B2:N`);
+
+    // 내부 배열은 [A..N] 14열 구조 → B..N만 기록 (index 1..13 → 13개)
+    const valuesBN = values.map(r=>{
+      const row = Array.isArray(r)? r : [];
+      const sl = row.slice(1, 14); // B..N
+      while(sl.length < 13) sl.push('');
+      return sl;
+    });
+
+    const res = await gapi.client.sheets.spreadsheets.values.update({
+      spreadsheetId,
+      range: `${sheetName}!B2`,
+      valueInputOption,
+      resource: { range: `${sheetName}!B2`, majorDimension:'ROWS', values: valuesBN }
+    });
+    return res.result?.updatedRows ?? valuesBN.length;
+  }
+
+  /* =================== CSV 로드 =================== */
+  function readCsv(file){
+    return new Promise((resolve)=>{
+      if(!file){ resolve([]); return; }
+      Papa.parse(file,{
+        complete:(res)=>{
+          let rows=Array.isArray(res.data)?res.data:[];
+          rows=rows.map(r=> Array.isArray(r)?r:[r]);
+          const cnt=rows.filter(r=> r.some(c=> String(c).trim()!=='')).length;
+          if(cnt>0){ resolve(rows); return; }
+          const tryEnc=['UTF-8','EUC-KR','CP949','ISO-8859-1']; let idx=0;
+          const fr=new FileReader();
+          fr.onload=()=>{ const parsed=Papa.parse(String(fr.result||''),{skipEmptyLines:'greedy'}); let r=Array.isArray(parsed.data)?parsed.data:[]; r=r.map(x=>Array.isArray(x)?x:[x]); const c=r.filter(x=>x.some(y=>String(y).trim()!=='')).length; if(c>0 || idx>=tryEnc.length-1) resolve(r); else { idx++; fr.readAsText(file, tryEnc[idx]); } };
+          fr.onerror=()=>resolve([]);
+          fr.readAsText(file, tryEnc[idx]);
+        },
+        error:()=>{ const fr=new FileReader(); fr.onload=()=>{ const parsed=Papa.parse(String(fr.result||''),{skipEmptyLines:'greedy'}); let r=Array.isArray(parsed.data)?parsed.data:[]; r=r.map(x=>Array.isArray(x)?x:[x]); resolve(r); }; fr.onerror=()=>resolve([]); fr.readAsText(file,'UTF-8'); },
+        skipEmptyLines:'greedy'
+      });
+    });
+  }
+
+  /* =================== 시트 헤더 & 공통 =================== */
+  // A..N(14열) 헤더: N열까지만 사용
+  function buildHeader(){
+    return ['A','B','C','D','E','F','G','H(결제금액)','I(상태)','J','K(결제시간)','L(결제수단)','M(환불금액)','N(환불일시)'];
+  }
+
+  // ===== 카드: A..J → B..K, L='신용카드', M/N = 카드 CSV K/L 유지(환불정보 등), K오름차순
+  function processCardRows(rows, skipHeader=true){
+    const out=[]; const start=skipHeader?1:0;
+    for(let i=start;i<rows.length;i++){
+      const r=rows[i]||[]; if(r.length===0 || r.every(x=>String(x).trim()==='')) continue;
+      const o=ensureArrayLen(14);  // A..N
+      for(let j=0;j<10;j++){ o[1+j]=r[j]??''; } // B..K
+      o[11]='신용카드';            // L
+      o[12]= r[10] ?? o[12];      // M ← 카드 CSV K (환불금액 등)
+      o[13]= r[11] ?? o[13];      // N ← 카드 CSV L (환불일시 등)
+      out.push(o);
+    }
+    out.sort((a,b)=> (getTimeFromAny(a[10])||Infinity) - (getTimeFromAny(b[10])||Infinity));
+    return out;
+  }
+
+  // ===== 계좌: tickets(입출금) + responses(이메일/연락처 보강) — 출금=환불로 M/N 채우기
+  function makeBankRows(tickets, responses, skipT=true, skipR=true){
+    if(!tickets.length) return [];
+    const tHead=tickets[0]||[];
+    const cDate = findColIndex(tHead, ['일시','거래일시','거래시간','승인일시','처리일시','date','time']);
+    const cAmt  = findColIndex(tHead, ['금액','거래금액','입금액','출금액','amount']);
+    const cStat = findColIndex(tHead, ['상태','거래구분','입출금','구분','type']);
+    const cName = findColIndex(tHead, ['보낸분/받는분','거래상대명','거래처','성명','상대']);
+    const cPlace= findColIndex(tHead, ['사용처','적요','내용','메모']);
+    const cNote = findColIndex(tHead, ['계좌적요']); // ★ 우선 사용
+
+    const rHead=responses[0]||[];
+    const rName = findColIndex(rHead, ['성함','이름','신청자','name']);
+    const rEmail= findColIndex(rHead, ['이메일','email']);
+    const rPhone= findColIndex(rHead, ['연락처','전화','휴대폰','phone','mobile']);
+
+    // 이름 추출 보조: 계좌적요 > 성명/거래상대 > 사용처(←/→ 왼쪽)
+    function pickCounterpartyName(row){
+      let s='';
+      if(cNote>=0) s = row[cNote] || '';
+      if(!s && cName>=0) s = row[cName] || '';
+      if(!s && cPlace>=0) s = row[cPlace] || '';
+      s = String(s||'').trim();
+      if(!s) return '';
+      if(s.includes('←')) s = s.split('←')[0];
+      if(s.includes('→')) s = s.split('→')[0];
+      return normName(s);
+    }
+
+    const respMap=new Map();
+    const rStart=skipR?1:0;
+    if(rName>=0){
+      for(let i=rStart;i<responses.length;i++){
+        const rr=responses[i]||[];
+        const nm=normName(rr[rName]||''); if(!nm) continue;
+        if(!respMap.has(nm)) respMap.set(nm,{
+          email: rEmail>=0?(rr[rEmail]||''):'',
+          phone: rPhone>=0?(rr[rPhone]||''):''
+        });
+      }
+    }
+
+    const depByName=new Map(); // 입금(결제)
+    const refByName=new Map(); // 출금(환불)
+    const tStart=skipT?1:0;
+
+    for(let i=tStart;i<tickets.length;i++){
+      const r=tickets[i]||[]; if(r.every(x=>String(x).trim()==='')) continue;
+      const statRaw=(cStat>=0?String(r[cStat]):'').trim();
+      const isDeposit=/입금/.test(statRaw) || /수입|받음|입금완료|in/i.test(statRaw);
+      const isWithdraw=/출금/.test(statRaw) || /환불|지출|보냄|out/i.test(statRaw);
+
+      const nameN = pickCounterpartyName(r);
+      const when  = cDate>=0 ? (r[cDate]||'') : '';
+      const amtAbs= Math.abs(parseMoney(cAmt>=0 ? r[cAmt] : 0));
+      if(!nameN) continue;
+
+      if(isDeposit){
+        const meta=respMap.get(nameN)||{email:'',phone:''};
+        const row=ensureArrayLen(14); // A..N
+        row[3]= nameN;           // D 이름
+        row[4]= meta.phone || ''; // E 전화
+        row[5]= meta.email || ''; // F 이메일
+        row[6]= '강의';          // G 품목
+        row[7]= amtAbs;          // H 결제금액(+)
+        row[8]= '결제완료';       // I 상태
+        row[9]= '면세';          // J
+        row[10]= when;           // K 결제시간(입금일시)
+        row[11]= '계좌이체';     // L 결제수단
+        row[12]= '';             // M 환불금액(후처리)
+        row[13]= '';             // N 환불일시(후처리)
+        (depByName.get(nameN) || depByName.set(nameN,[]).get(nameN)).push({when, paid:amtAbs, row});
+      }else if(isWithdraw){
+        const rec={when, amt:amtAbs};
+        (refByName.get(nameN) || refByName.set(nameN,[]).get(nameN)).push(rec);
+      }
+    }
+
+    // 입금별 환불 매칭(출금=환불)
+    const out=[];
+    for(const [nameN, deps] of depByName.entries()){
+      const refunds=(refByName.get(nameN)||[]).sort((a,b)=> getTimeFromAny(a.when)-getTimeFromAny(b.when));
+      const deposits=deps.sort((a,b)=> getTimeFromAny(a.when)-getTimeFromAny(b.when));
+
+      let ri=0;
+      for(const d of deposits){
+        let remain=d.paid, rsum=0, rdate='';
+        while(remain>0 && ri<refunds.length){
+          const rf=refunds[ri];
+          const take=Math.min(remain, rf.amt);
+          rf.amt-=take; remain-=take; rsum+=take; rdate=rf.when;
+          if(rf.amt===0) ri++;
+        }
+        if(rsum>0){ d.row[12]=rsum; d.row[13]=rdate; }                  // M/N
+        d.row[8] = rsum===0 ? '결제완료' : (rsum>=d.paid ? '환불됨' : '부분환불');
+        out.push(d.row);
+      }
+    }
+
+    out.sort((a,b)=> (getTimeFromAny(a[10])||Infinity) - (getTimeFromAny(b[10])||Infinity));
+    return out;
+  }
+
+  /* =================== 빌드 & 프리뷰 =================== */
+  function buildFinalRows(){
+    const header=buildHeader();
+    const card = csvCard.length ? processCardRows(csvCard, $('#headCard').checked) : [];
+    const bank = csvTickets.length ? makeBankRows(csvTickets, csvResp, $('#headTicket').checked, $('#headResp').checked) : [];
+    parsedRows=[header, ...card, ...bank]; // 카드(오름차순) 뒤에 계좌(오름차순)
+    $('#optHasHeader').checked=true;
+  }
+
+  function renderPreview(rows){
+    const table=$('#previewTable'); table.innerHTML='';
+    if(!rows.length){ $('#summary').textContent='행 0'; return; }
+
+    const thead=document.createElement('thead');
+    const tbody=document.createElement('tbody');
+    const colCount=rows[0].length;
+
+    if($('#optHasHeader').checked){
+      const tr=document.createElement('tr');
+      rows[0].forEach((h,idx)=>{ const th=document.createElement('th'); th.className='bg-slate-100 text-slate-700 font-semibold'; th.textContent=h||`(col${idx+1})`; tr.appendChild(th); });
+      thead.appendChild(tr);
+    }
+    const startIdx=$('#optHasHeader').checked?1:0;
+    for(let r=startIdx;r<rows.length;r++){
+      const tr=document.createElement('tr'), row=rows[r];
+      for(let c=0;c<colCount;c++){
+        const td=document.createElement('td'); const v=(row[c]??'').toString();
+        if(row.length!==colCount) td.classList.add('invalid');
+        td.textContent=v; tr.appendChild(td);
+      }
       tbody.appendChild(tr);
-    });
-
-    table.appendChild(thead);
-    table.appendChild(tbody);
-
-    $("#pageInfo").textContent = rows.length ? `${rows.length} rows` : "";
-  }
-
-  // Apps Script에서 JSONP로 호출해 줄 콜백
-  function cojobooCallback(data) {
-    try {
-      console.log("JSONP 응답:", data);
-      header = data.header || [];
-      rows   = data.rows   || [];
-      lastTotal = data.total || rows.length;
-
-      updateCountInfo();
-      renderTable();
-      setStatus("검색 완료");
-    } catch (err) {
-      console.error("cojobooCallback error:", err);
-      setStatus("응답 처리 실패: " + (err.message || err));
-      alert("응답 처리 실패\n" + (err.message || err));
-    } finally {
-      // script 태그 한 번 쓰고 제거 (안 해도 되지만 깔끔하게)
-      if (lastJsonpScript && lastJsonpScript.parentNode) {
-        lastJsonpScript.parentNode.removeChild(lastJsonpScript);
-        lastJsonpScript = null;
-      }
     }
+    table.appendChild(thead); table.appendChild(tbody);
+    const bodyRows=Math.max(0, rows.length-(startIdx));
+    $('#summary').textContent=`열 ${colCount} · 데이터 행 ${bodyRows}`;
   }
 
-  // 전역에 달아주기 (JSONP에서는 window.cojobooCallback(...) 형태로 실행됨)
-  window.cojobooCallback = cojobooCallback;
+  /* =================== 이벤트 =================== */
+  window.addEventListener('error', e=> toast('오류: '+(e?.error?.message||e.message||'알 수 없는 오류'),'error'));
+  window.addEventListener('unhandledrejection', e=> toast('처리되지 않은 오류: '+(e?.reason?.message||e.reason||'알 수 없는 오류'),'error'));
 
-  function searchCustomers() {
-    const q = $("#searchInput").value.trim();
-    setStatus("검색 중...");
-    $("#resultTable").innerHTML = "";
-    $("#pageInfo").textContent = "";
-    $("#countInfo").textContent = "데이터 0행";
+  document.addEventListener('DOMContentLoaded', ()=>{
+    // 파일 업로드(파일명 표시 + 인코딩 대응)
+    $('#csvCard').addEventListener('change', async (e)=>{
+      try{
+        const f=e.target.files?.[0]; if(!f){ toast('카드 CSV 선택이 비었습니다','error'); return; }
+        $('#nameCard').textContent = f.name;
+        csvCard=await readCsv(f);
+        const cnt=csvCard.filter(r=>Array.isArray(r)&&r.some(c=>String(c).trim()!=='')).length;
+        toast(`카드 CSV 로드: ${csvCard.length}행 (유효 ${cnt}행)`, cnt?'ok':'error');
+      }catch(err){ console.error(err); toast('카드 CSV 읽기 실패','error'); }
+      finally{ e.target.value=''; }
+    }, {capture:true});
 
-    // 이전 JSONP 스크립트 제거
-    if (lastJsonpScript && lastJsonpScript.parentNode) {
-      lastJsonpScript.parentNode.removeChild(lastJsonpScript);
-      lastJsonpScript = null;
-    }
+    $('#csvTicket').addEventListener('change', async (e)=>{
+      try{
+        const f=e.target.files?.[0]; if(!f){ toast('tickets CSV 선택이 비었습니다','error'); return; }
+        $('#nameTicket').textContent = f.name;
+        csvTickets=await readCsv(f);
+        const cnt=csvTickets.filter(r=>Array.isArray(r)&&r.some(c=>String(c).trim()!=='')).length;
+        toast(`tickets 로드: ${csvTickets.length}행 (유효 ${cnt}행)`, cnt?'ok':'error');
+      }catch(err){ console.error(err); toast('tickets 읽기 실패','error'); }
+      finally{ e.target.value=''; }
+    }, {capture:true});
 
-    // JSONP용 script 태그 생성
-    const script = document.createElement("script");
-    const url =
-      PROXY_URL +
-      "?q=" + encodeURIComponent(q) +
-      "&callback=cojobooCallback" +
-      "&_ts=" + Date.now(); // 캐시 방지용
+    $('#csvResp').addEventListener('change', async (e)=>{
+      try{
+        const f=e.target.files?.[0]; if(!f){ toast('responses CSV 선택이 비었습니다','error'); return; }
+        $('#nameResp').textContent = f.name;
+        csvResp=await readCsv(f);
+        const cnt=csvResp.filter(r=>Array.isArray(r)&&r.some(c=>String(c).trim()!=='')).length;
+        toast(`responses 로드: ${csvResp.length}행 (유효 ${cnt}행)`, cnt?'ok':'error');
+      }catch(err){ console.error(err); toast('responses 읽기 실패','error'); }
+      finally{ e.target.value=''; }
+    }, {capture:true});
 
-    script.src = url;
-    script.onerror = function(err) {
-      console.error("JSONP script error:", err);
-      setStatus("호출 실패 (JSONP 로드 에러)");
-      alert("결제자 명단 불러오기 실패(JSONP 로드 에러)");
-    };
-
-    lastJsonpScript = script;
-    document.body.appendChild(script);
-  }
-
-  document.addEventListener("DOMContentLoaded", () => {
-    $("#btnFetch").addEventListener("click", (e) => {
+    // 미리보기
+    $('#btnPreviewCsv').addEventListener('click', (e)=>{
       e.preventDefault();
-      searchCustomers();
+      try{
+        if(!csvCard.length && !csvTickets.length){ parsedRows=[buildHeader()]; renderPreview(parsedRows); toast('CSV를 업로드하세요 (헤더만 표시)','error'); return; }
+        buildFinalRows();
+        let rows=parsedRows;
+        if($('#optMaskPhone').checked) rows=maskPhones(rows);
+        rows=equalizeRowLength(rows);
+        renderPreview(rows);
+        toast('미리보기 갱신(카드→계좌, K 오름차순)','ok');
+      }catch(err){ console.error(err); toast('정리 실패: 콘솔 확인','error'); }
     });
 
-    $("#searchInput").addEventListener("keydown", (e) => {
-      if (e.key === "Enter") {
-        e.preventDefault();
-        searchCustomers();
-      }
-    });
-
-    $("#btnClearSearch").addEventListener("click", (e) => {
+    // 초기화
+    $('#btnClear').addEventListener('click', (e)=>{
       e.preventDefault();
-      $("#searchInput").value = "";
-      searchCustomers();
+      csvCard=[]; csvTickets=[]; csvResp=[]; parsedRows=[];
+      $('#csvCard').value=''; $('#csvTicket').value=''; $('#csvResp').value='';
+      $('#nameCard').textContent=''; $('#nameTicket').textContent=''; $('#nameResp').textContent='';
+      $('#previewTable').innerHTML=''; $('#summary').textContent='';
+      toast('초기화 완료');
     });
+
+    // Google 연결
+    $('#connectBtn').addEventListener('click', async (e)=>{
+      e.preventDefault();
+      try{
+        if(OAUTH_CLIENT_ID.startsWith('REPLACE_WITH')){ toast('OAuth 클라이언트 ID를 설정해 주세요.','error'); return; }
+        await ensureGapiLoaded(); await ensureAuth(); $('#btnSend').disabled=false;
+      }catch(err){ console.error(err); toast('Google 연결 실패','error'); }
+    });
+
+    // 시트 목록 불러오기 → 드롭다운 채우기
+    $('#btnLoadSheets').addEventListener('click', async (e)=>{
+      e.preventDefault();
+      try{
+        await ensureGapiLoaded();
+        if(!oauthReady){ toast('먼저 Google 계정 연결을 해주세요','error'); return; }
+        const spreadsheetId = parseSpreadsheetId($('#sheetUrl').value);
+        if(!spreadsheetId){ toast('스프레드시트 URL/ID를 입력하세요','error'); return; }
+        const titles = await listSheets(spreadsheetId);
+        const sel = $('#sheetPicker'); sel.innerHTML='';
+        if(!titles.length){ sel.innerHTML = '<option value="">(시트 없음)</option>'; return; }
+        titles.forEach(t => {
+          const opt = document.createElement('option');
+          opt.value = t; opt.textContent = t;
+          sel.appendChild(opt);
+        });
+        toast(`시트 ${titles.length}개 불러옴`,'ok');
+      }catch(err){ console.error(err); toast('시트 목록 불러오기 실패','error'); }
+    });
+
+    // 전송
+    $('#btnSend').addEventListener('click', async (e)=>{
+      e.preventDefault();
+      try{
+        await ensureGapiLoaded();
+        if(!oauthReady){ toast('먼저 Google 계정 연결을 해주세요','error'); return; }
+        if(!parsedRows.length){ toast('먼저 정리 미리보기를 실행하세요','error'); return; }
+        const hasHeader=$('#optHasHeader').checked;
+        const rowsToSend=hasHeader? parsedRows.slice(1): parsedRows;
+        if(!rowsToSend.length){ toast('전송할 데이터 행이 없습니다','error'); return; }
+        $('#btnSend').disabled=true;
+        const updated=await writeFromB2(rowsToSend);
+        toast(`전송 완료: ${updated}행`,'ok');
+      }catch(err){ console.error(err); toast('전송 실패: 콘솔 확인','error'); }
+      finally{ $('#btnSend').disabled=false; }
+    });
+
+    window.updateAuthUI = ()=>{ $('#authState').textContent = oauthReady ? '연결됨' : '미연결'; };
   });
-</script>
+  </script>
+</body>
+</html>
