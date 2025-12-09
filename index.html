@@ -287,106 +287,150 @@
     return out;
   }
 
-  // ===== 계좌: tickets(입출금) + responses(이메일/연락처 보강) — 출금=환불로 M/N 채우기
+  // ===== 계좌: 국민 9370 전용 로직 =====
+  // F열: '현금매출' = 결제, '매출환입및에누리' = 환불
+  // C열: 같은 값끼리 한 결제 그룹으로 묶어서
+  //   → 현금매출 + 매출환입및에누리 금액 합계가 0이면 '환불됨'
+  //   → 0이 아니면 '부분환불'
   function makeBankRows(tickets, responses, skipT=true, skipR=true){
     if(!tickets.length) return [];
-    const tHead=tickets[0]||[];
+
+    const tHead = tickets[0] || [];
     const cDate = findColIndex(tHead, ['일시','거래일시','거래시간','승인일시','처리일시','date','time']);
     const cAmt  = findColIndex(tHead, ['금액','거래금액','입금액','출금액','amount']);
-    const cStat = findColIndex(tHead, ['상태','거래구분','입출금','구분','type']);
-    const cName = findColIndex(tHead, ['보낸분/받는분','거래상대명','거래처','성명','상대']);
-    const cPlace= findColIndex(tHead, ['사용처','적요','내용','메모']);
-    const cNote = findColIndex(tHead, ['계좌적요']); // ★ 우선 사용
 
-    const rHead=responses[0]||[];
+    // ★ 국민 9370 전용: C열(0-based index 2), F열(0-based index 5) 사용
+    const IDX_GROUP = 2; // C열: 거래/전표 식별자
+    const IDX_TYPE  = 5; // F열: '현금매출' / '매출환입및에누리'
+
+    // responses.csv 에서 이름 기준으로 연락처/이메일 보강 (기존 로직 유지)
+    const rHead = responses[0] || [];
     const rName = findColIndex(rHead, ['성함','이름','신청자','name']);
     const rEmail= findColIndex(rHead, ['이메일','email']);
     const rPhone= findColIndex(rHead, ['연락처','전화','휴대폰','phone','mobile']);
 
-    // 이름 추출 보조: 계좌적요 > 성명/거래상대 > 사용처(←/→ 왼쪽)
+    const respMap = new Map();
+    const rStart  = skipR ? 1 : 0;
+    if(rName >= 0){
+      for(let i=rStart;i<responses.length;i++){
+        const rr = responses[i] || [];
+        const nm = normName(rr[rName] || '');
+        if(!nm) continue;
+        if(!respMap.has(nm)){
+          respMap.set(nm, {
+            email: rEmail>=0 ? (rr[rEmail] || '') : '',
+            phone: rPhone>=0 ? (rr[rPhone] || '') : ''
+          });
+        }
+      }
+    }
+
+    // 계좌적요/거래상대명 → 이름 비슷하게 뽑는 기존 함수
+    const cName = findColIndex(tHead, ['보낸분/받는분','거래상대명','거래처','성명','상대']);
+    const cPlace= findColIndex(tHead, ['사용처','적요','내용','메모']);
+    const cNote = findColIndex(tHead, ['계좌적요']);
     function pickCounterpartyName(row){
-      let s='';
-      if(cNote>=0) s = row[cNote] || '';
-      if(!s && cName>=0) s = row[cName] || '';
-      if(!s && cPlace>=0) s = row[cPlace] || '';
-      s = String(s||'').trim();
+      let s = '';
+      if(cNote >= 0) s = row[cNote] || '';
+      if(!s && cName >= 0) s = row[cName] || '';
+      if(!s && cPlace>= 0) s = row[cPlace] || '';
+      s = String(s || '').trim();
       if(!s) return '';
       if(s.includes('←')) s = s.split('←')[0];
       if(s.includes('→')) s = s.split('→')[0];
       return normName(s);
     }
 
-    const respMap=new Map();
-    const rStart=skipR?1:0;
-    if(rName>=0){
-      for(let i=rStart;i<responses.length;i++){
-        const rr=responses[i]||[];
-        const nm=normName(rr[rName]||''); if(!nm) continue;
-        if(!respMap.has(nm)) respMap.set(nm,{
-          email: rEmail>=0?(rr[rEmail]||''):'',
-          phone: rPhone>=0?(rr[rPhone]||''):''
-        });
-      }
-    }
-
-    const depByName=new Map(); // 입금(결제)
-    const refByName=new Map(); // 출금(환불)
-    const tStart=skipT?1:0;
+    // 그룹별(C열)로 결제/환불 묶기
+    const groups = new Map(); // key: C열 값, value: { sales: [], refunds: [] }
+    const tStart = skipT ? 1 : 0;
 
     for(let i=tStart;i<tickets.length;i++){
-      const r=tickets[i]||[]; if(r.every(x=>String(x).trim()==='')) continue;
-      const statRaw=(cStat>=0?String(r[cStat]):'').trim();
-      const isDeposit=/입금/.test(statRaw) || /수입|받음|입금완료|in/i.test(statRaw);
-      const isWithdraw=/출금/.test(statRaw) || /환불|지출|보냄|out/i.test(statRaw);
+      const r = tickets[i] || [];
+      if(r.every(x => String(x).trim() === '')) continue;
+
+      if(r.length <= Math.max(IDX_GROUP, IDX_TYPE)) continue;
+
+      const groupKey = String(r[IDX_GROUP] ?? '').trim();
+      if(!groupKey) continue; // C열이 비어 있으면 스킵
+
+      const typeCell = String(r[IDX_TYPE] ?? '').trim();
+      const amt      = cAmt>=0 ? parseMoney(r[cAmt]) : 0;
+      const when     = cDate>=0 ? (r[cDate] || '') : '';
+
+      const isSale   = typeCell.includes('현금매출');
+      const isRefund = typeCell.includes('매출환입및에누리');
+
+      if(!isSale && !isRefund) continue; // 다른 적요는 무시
 
       const nameN = pickCounterpartyName(r);
-      const when  = cDate>=0 ? (r[cDate]||'') : '';
-      const amtAbs= Math.abs(parseMoney(cAmt>=0 ? r[cAmt] : 0));
-      if(!nameN) continue;
+      let g = groups.get(groupKey);
+      if(!g){
+        g = { sales: [], refunds: [] };
+        groups.set(groupKey, g);
+      }
 
-      if(isDeposit){
-        const meta=respMap.get(nameN)||{email:'',phone:''};
-        const row=ensureArrayLen(14); // A..N
-        row[3]= nameN;           // D 이름
-        row[4]= meta.phone || ''; // E 전화
-        row[5]= meta.email || ''; // F 이메일
-        row[6]= '강의';          // G 품목
-        row[7]= amtAbs;          // H 결제금액(+)
-        row[8]= '결제완료';       // I 상태
-        row[9]= '면세';          // J
-        row[10]= when;           // K 결제시간(입금일시)
-        row[11]= '계좌이체';     // L 결제수단
-        row[12]= '';             // M 환불금액(후처리)
-        row[13]= '';             // N 환불일시(후처리)
-        (depByName.get(nameN) || depByName.set(nameN,[]).get(nameN)).push({when, paid:amtAbs, row});
-      }else if(isWithdraw){
-        const rec={when, amt:amtAbs};
-        (refByName.get(nameN) || refByName.set(nameN,[]).get(nameN)).push(rec);
+      if(isSale){
+        g.sales.push({ when, amt, name: nameN });
+      }else if(isRefund){
+        g.refunds.push({ when, amt });
       }
     }
 
-    // 입금별 환불 매칭(출금=환불)
-    const out=[];
-    for(const [nameN, deps] of depByName.entries()){
-      const refunds=(refByName.get(nameN)||[]).sort((a,b)=> getTimeFromAny(a.when)-getTimeFromAny(b.when));
-      const deposits=deps.sort((a,b)=> getTimeFromAny(a.when)-getTimeFromAny(b.when));
+    const out = [];
 
-      let ri=0;
-      for(const d of deposits){
-        let remain=d.paid, rsum=0, rdate='';
-        while(remain>0 && ri<refunds.length){
-          const rf=refunds[ri];
-          const take=Math.min(remain, rf.amt);
-          rf.amt-=take; remain-=take; rsum+=take; rdate=rf.when;
-          if(rf.amt===0) ri++;
-        }
-        if(rsum>0){ d.row[12]=rsum; d.row[13]=rdate; }                  // M/N
-        d.row[8] = rsum===0 ? '결제완료' : (rsum>=d.paid ? '환불됨' : '부분환불');
-        out.push(d.row);
+    // 각 그룹(C열 값 하나당) -> 한 행으로 만들기
+    for(const [groupKey, g] of groups.entries()){
+      if(!g.sales.length) continue; // 현금매출이 없으면 결제 행이 아니라고 보고 패스
+
+      // 금액 합계
+      const saleSum   = g.sales.reduce((s,x)=> s + (x.amt || 0), 0);
+      const refundSum = g.refunds.reduce((s,x)=> s + (x.amt || 0), 0);
+      const net       = saleSum + refundSum;
+
+      // 환불 금액은 "얼마가 환불됐는지" 양수로 보여주고 싶으면 절대값 사용
+      const refundAmount = Math.abs(refundSum);
+
+      // 환불일시는 가장 늦은 일자 기준
+      let refundDate = '';
+      if(g.refunds.length){
+        g.refunds.sort((a,b)=> (getTimeFromAny(a.when)||0) - (getTimeFromAny(b.when)||0));
+        refundDate = g.refunds[g.refunds.length - 1].when || '';
       }
+
+      // 기본 정보: 첫 번째 현금매출 행 기준
+      g.sales.sort((a,b)=> (getTimeFromAny(a.when)||0) - (getTimeFromAny(b.when)||0));
+      const firstSale = g.sales[0];
+      const nameN     = firstSale.name || '';
+      const meta      = respMap.get(nameN) || { email:'', phone:'' };
+
+      // 상태 결정: 0이면 전액환불, 0이 아니면 부분환불/결제완료
+      let status = '결제완료';
+      if(refundAmount > 0){
+        status = (net === 0) ? '환불됨' : '부분환불';
+      }
+
+      const row = ensureArrayLen(14); // A..N
+
+      // A,B,C는 이번 국민 원장에서는 특별히 쓸 게 없으니 비워두고,
+      // D~F에 이름/연락처/이메일, G 품목, H 금액, I 상태, J 과세구분, K 결제시간, L 결제수단, M 환불금액, N 환불일시
+      row[3]  = nameN;          // D 이름
+      row[4]  = meta.phone;     // E 전화
+      row[5]  = meta.email;     // F 이메일
+      row[6]  = '강의';         // G 품목 (필요시 바꿔도 됨)
+      row[7]  = saleSum;        // H 결제금액(그룹 내 현금매출 합계)
+      row[8]  = status;         // I 상태 (결제완료 / 부분환불 / 환불됨)
+      row[9]  = '면세';         // J 과세구분 (필요시 수정)
+      row[10] = firstSale.when; // K 결제시간
+      row[11] = '계좌이체';     // L 결제수단
+      row[12] = refundAmount || ''; // M 환불금액 (없으면 공백)
+      row[13] = refundDate;     // N 환불일시 (없으면 공백)
+
+      out.push(row);
     }
 
-    out.sort((a,b)=> (getTimeFromAny(a[10])||Infinity) - (getTimeFromAny(b[10])||Infinity));
+    // 결제시간(K열) 기준 정렬
+    out.sort((a,b)=> (getTimeFromAny(a[10]) || Infinity) - (getTimeFromAny(b[10]) || Infinity));
     return out;
   }
 
