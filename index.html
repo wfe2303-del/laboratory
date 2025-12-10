@@ -60,7 +60,7 @@
       color:#1e293b;
     }
     .invalid{background:#fef2f2;color:#b91c1c}
-    .fname{font-size:11px;color:#64748b;margin-top:3px}
+    .fname{display:none;} /* 아래 회색 파일명 표시 안 함 */
     .badge-blue{
       background:#eff6ff;
       color:#1d4ed8;
@@ -80,7 +80,7 @@
   <header>
     <div class="max-w-5xl mx-auto px-4 py-2.5 flex items-center justify-between gap-3">
       <div class="flex items-center gap-3">
-        <!-- ClassAround 로고 (카톡 입장자 체크와 동일 스타일) -->
+        <!-- ClassAround 로고 -->
         <svg class="w-20 h-11" viewBox="0 0 90 50" role="img" aria-label="ClassAround">
           <rect width="90" height="50" rx="10" fill="white"/>
           <circle cx="66" cy="10" r="8" fill="#6b8bd6"/>
@@ -99,7 +99,6 @@
           </text>
         </svg>
         <div class="flex flex-col">
-          <span class="text-[11px] font-semibold text-slate-700">
           <span class="text-xs md:text-sm font-bold text-slate-900">수강생 시트 업데이트</span>
         </div>
       </div>
@@ -133,7 +132,6 @@
               <span>💳</span>
               <span class="font-semibold text-slate-900">카드결제</span>
             </div>
-            <span class="text-[10px] text-slate-400"></span>
           </div>
           <input id="csvCard" type="file" accept="text/csv,.csv"
                  class="block w-full text-[12px] cursor-pointer bg-white border border-slate-300 rounded-lg px-2.5 py-1.5 file:mr-2 file:px-2 file:py-1 file:rounded-md file:border-0 file:bg-slate-100 file:text-[11px] file:text-slate-700 file:cursor-pointer" />
@@ -153,7 +151,6 @@
               <span>🏦</span>
               <span class="font-semibold text-slate-900">계좌이체</span>
             </div>
-            <span class="text-[10px] text-slate-400"></span>
           </div>
 
           <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-1">
@@ -194,12 +191,9 @@
           </div>
 
           <div class="space-y-1.5 mt-1">
-            <div>
-              <label class="block text-[11px] text-slate-600 mb-0.5">시트ID</label>
-              <input id="sheetUrl" type="text"
-                     class="w-full bg-white border border-slate-300 rounded-lg px-2.5 py-1.5 text-[12px]"
-                     placeholder="https://docs.google.com/spreadsheets/d/XXXXXXXXX/edit" />
-            </div>
+            <!-- 시트 ID는 화면에 안 보이게 hidden input 으로만 보관 -->
+            <input id="sheetUrl" type="hidden" />
+
             <div class="grid grid-cols-3 gap-2 items-end">
               <div class="col-span-2">
                 <label class="block text-[11px] text-slate-600 mb-0.5">시트 선택</label>
@@ -255,8 +249,6 @@
               시트로 전송
             </button>
           </div>
-
-          <p class="text-[11px] text-slate-500"></p>
         </div>
       </div>
     </section>
@@ -267,7 +259,6 @@
         <div class="flex items-center gap-2 text-[12px]">
           <span>👀</span>
           <span class="font-semibold text-slate-900">시트 미리보기</span>
-          <span class="text-[11px] text-slate-500"></span>
         </div>
         <div id="summary" class="text-[11px] text-slate-500"></div>
       </div>
@@ -284,9 +275,12 @@
   const OAUTH_CLIENT_ID = "18228268359-iifm4ck3j9kqj74eh1p90tco1k2mbpi0.apps.googleusercontent.com";
   const OAUTH_SCOPES   = "https://www.googleapis.com/auth/spreadsheets https://www.googleapis.com/auth/drive.readonly";
 
+  // 고정 스프레드시트 ID
+  const FIXED_SPREADSHEET_ID = "1qclrbo3_VG-sSNIqMW4j1juzwP3nq_ZaT-y1z6WLafc";
+
   let tokenClient = null;
   let oauthReady  = false;
-  let accessToken = null;          // index.html에서 저장한 토큰 재사용 + 이 페이지에서 재인증
+  let accessToken = null;
 
   let parsedRows=[];               // 헤더+본체
   let csvCard=[], csvTickets=[], csvResp=[];
@@ -296,9 +290,9 @@
     const el=$("#toast"); if(!el) return;
     el.textContent=msg;
     el.classList.add("show");
-    if(type==='error') el.style.background='#b91c1c';      // red
-    else if(type==='ok') el.style.background='#15803d';    // green
-    else el.style.background='#0f172a';                    // default
+    if(type==='error') el.style.background='#b91c1c';
+    else if(type==='ok') el.style.background='#15803d';
+    else el.style.background='#0f172a';
     setTimeout(()=> el.classList.remove("show"), 2600);
   };
 
@@ -372,7 +366,6 @@
     });
   }
 
-  // index.html에서 저장된 토큰 불러오기
   function loadTokenFromSession(){
     const saved = sessionStorage.getItem("ca_gapi_token");
     if(saved){
@@ -381,7 +374,6 @@
     }
   }
 
-  // 이 페이지에서 직접 Google 인증 호출
   function initGoogleAuth(){
     if(!window.google?.accounts?.oauth2){
       toast('Google 로그인 스크립트를 불러오는 중입니다. 잠시 후 다시 시도해주세요.','error');
@@ -410,7 +402,6 @@
     tokenClient.requestAccessToken({prompt:'consent'});
   }
 
-  // 실제 API 호출 전에 토큰 세팅만 확인
   async function ensureAuth(){
     await ensureGapiLoaded();
     if(accessToken){
@@ -428,10 +419,8 @@
     throw new Error('⚠ Google 인증이 필요합니다. 상단의 [Google 인증] 버튼을 눌러주세요.');
   }
 
-  function parseSpreadsheetId(input){
-    if(!input) return '';
-    const m=input.match(/\/spreadsheets\/d\/([a-zA-Z0-9-_]+)/);
-    return m && m[1] ? m[1] : input.trim();
+  function parseSpreadsheetId(){
+    return FIXED_SPREADSHEET_ID;
   }
 
   async function listSheets(spreadsheetId){
@@ -445,8 +434,8 @@
   }
 
   async function writeFromB2(values){
-    const spreadsheetId = parseSpreadsheetId($('#sheetUrl').value);
-    if(!spreadsheetId) { toast('스프레드시트 URL/ID를 입력하세요','error'); throw new Error('no sheet'); }
+    const spreadsheetId = parseSpreadsheetId();
+    if(!spreadsheetId) { toast('스프레드시트 ID가 설정되지 않았습니다.','error'); throw new Error('no sheet'); }
     const sheetName = ($('#sheetPicker').value || 'Sheet1');
     const valueInputOption = $('#valueInputOption').value;
 
@@ -526,121 +515,132 @@
     return out;
   }
 
-  /* ===== 계좌: 국민 9370 전용 로직 ===== */
-  function makeBankRows(tickets, responses, skipT=true, skipR=true){
-    if(!tickets.length) return [];
+  /* ===== 계좌: 새 포맷 ===== */
+  function makeBankRows(tickets, responses, skipT = true, skipR = true) {
+    if (!tickets.length) return [];
+
+    const IDX_DATE   = 0;
+    const IDX_TIME   = 1;
+    const IDX_REFUND = 5;
+    const IDX_SALE   = 6;
+    const IDX_REASON = 10;
+    const IDX_GROUP  = 21;
 
     const tHead = tickets[0] || [];
-    const cDate = findColIndex(tHead, ['일시','거래일시','거래시간','승인일시','처리일시','date','time']);
-    const cAmt  = findColIndex(tHead, ['금액','거래금액','입금액','출금액','amount']);
-
-    const IDX_GROUP = 12; // M열
-    const IDX_TYPE  = 5;  // F열
 
     const rHead = responses[0] || [];
-    const rName = findColIndex(rHead, ['성함','이름','신청자','name']);
-    const rEmail= findColIndex(rHead, ['이메일','email']);
-    const rPhone= findColIndex(rHead, ['연락처','전화','휴대폰','phone','mobile']);
+    const rName  = findColIndex(rHead, ['성함','이름','신청자','name']);
+    const rEmail = findColIndex(rHead, ['이메일','email']);
+    const rPhone = findColIndex(rHead, ['연락처','전화','휴대폰','phone','mobile']);
 
     const respMap = new Map();
     const rStart  = skipR ? 1 : 0;
-    if(rName >= 0){
-      for(let i=rStart;i<responses.length;i++){
+
+    if (rName >= 0) {
+      for (let i = rStart; i < responses.length; i++) {
         const rr = responses[i] || [];
         const nm = normName(rr[rName] || '');
-        if(!nm) continue;
-        if(!respMap.has(nm)){
+        if (!nm) continue;
+        if (!respMap.has(nm)) {
           respMap.set(nm, {
-            email: rEmail>=0 ? (rr[rEmail] || '') : '',
-            phone: rPhone>=0 ? (rr[rPhone] || '') : ''
+            email: rEmail >= 0 ? (rr[rEmail] || '') : '',
+            phone: rPhone >= 0 ? (rr[rPhone] || '') : ''
           });
         }
       }
     }
 
-    const cName = findColIndex(tHead, ['보낸분/받는분','거래상대명','거래처','성명','상대']);
-    const cPlace= findColIndex(tHead, ['사용처','적요','내용','메모']);
-    const cNote = findColIndex(tHead, ['계좌적요']);
-    function pickCounterpartyName(row){
+    const cName  = findColIndex(tHead, ['보낸분/받는분','거래상대명','거래처','성명','상대']);
+    const cPlace = findColIndex(tHead, ['사용처','적요','내용','메모']);
+    const cNote  = findColIndex(tHead, ['계좌적요']);
+
+    function pickCounterpartyName(row) {
       let s = '';
-      if(cNote >= 0) s = row[cNote] || '';
-      if(!s && cName >= 0) s = row[cName] || '';
-      if(!s && cPlace>= 0) s = row[cPlace] || '';
+      if (cNote  >= 0) s = row[cNote]  || '';
+      if (!s && cName  >= 0) s = row[cName]  || '';
+      if (!s && cPlace >= 0) s = row[cPlace] || '';
       s = String(s || '').trim();
-      if(!s) return '';
-      if(s.includes('←')) s = s.split('←')[0];
-      if(s.includes('→')) s = s.split('→')[0];
+      if (!s) return '';
+      if (s.includes('←')) s = s.split('←')[0];
+      if (s.includes('→')) s = s.split('→')[0];
       return normName(s);
     }
 
     const groups = new Map();
     const tStart = skipT ? 1 : 0;
 
-    for(let i=tStart;i<tickets.length;i++){
+    for (let i = tStart; i < tickets.length; i++) {
       const r = tickets[i] || [];
-      if(r.every(x => String(x).trim() === '')) continue;
-      if(r.length <= Math.max(IDX_GROUP, IDX_TYPE)) continue;
+      if (r.every(x => String(x).trim() === '')) continue;
+      if (r.length <= Math.max(IDX_GROUP, IDX_SALE, IDX_REFUND)) continue;
 
       const groupKey = String(r[IDX_GROUP] ?? '').trim();
-      if(!groupKey) continue;
+      if (!groupKey) continue;
 
-      const typeCell = String(r[IDX_TYPE] ?? '').trim();
-      const rawAmt   = cAmt>=0 ? parseMoney(r[cAmt]) : 0;
-      const when     = cDate>=0 ? (r[cDate] || '') : '';
+      const dateStr = String(r[IDX_DATE] ?? '').trim();
+      const timeStr = String(r[IDX_TIME] ?? '').trim();
+      const when = (dateStr || timeStr) ? `${dateStr} ${timeStr}`.trim() : '';
 
-      const isSale   = typeCell.includes('현금매출');
-      const isRefund = typeCell.includes('매출환입및에누리');
+      const saleRaw   = parseMoney(r[IDX_SALE]);
+      const refundRaw = parseMoney(r[IDX_REFUND]);
 
-      if(!isSale && !isRefund) continue;
-
-      let amtSigned = 0;
-      if (isSale) {
-        amtSigned = Math.abs(rawAmt);
-      } else if (isRefund) {
-        amtSigned = -Math.abs(rawAmt);
-      }
+      if (!saleRaw && !refundRaw) continue;
 
       const nameN = pickCounterpartyName(r);
+
       let g = groups.get(groupKey);
-      if(!g){
-        g = { sales: [], refunds: [] };
+      if (!g) {
+        g = { sales: [], refunds: [], reason: '' };
         groups.set(groupKey, g);
       }
 
-      if(isSale){
-        g.sales.push({ when, amt: amtSigned, name: nameN });
-      }else if(isRefund){
-        g.refunds.push({ when, amt: amtSigned });
+      const reasonCell = String(r[IDX_REASON] ?? '').trim();
+      if (reasonCell && !g.reason) {
+        g.reason = reasonCell;
+      }
+
+      if (saleRaw) {
+        const amt = Math.abs(saleRaw);
+        g.sales.push({ when, amt, name: nameN });
+      }
+
+      if (refundRaw) {
+        const amt = -Math.abs(refundRaw);
+        g.refunds.push({ when, amt });
       }
     }
 
     const out = [];
 
-    for(const [groupKey, g] of groups.entries()){
-      if(!g.sales.length) continue;
+    for (const [groupKey, g] of groups.entries()) {
+      if (!g.sales.length) continue;
 
-      const saleSum   = g.sales.reduce((s,x)=> s + (x.amt || 0), 0);
-      const refundSum = g.refunds.reduce((s,x)=> s + (x.amt || 0), 0);
+      const saleSum   = g.sales.reduce((s, x) => s + (x.amt || 0), 0);
+      const refundSum = g.refunds.reduce((s, x) => s + (x.amt || 0), 0);
       const net       = saleSum + refundSum;
-      const refundAmount = -refundSum;
+      const refundAmount = -refundSum || 0;
 
       let refundDate = '';
-      if(g.refunds.length){
-        g.refunds.sort((a,b)=> (getTimeFromAny(a.when)||0) - (getTimeFromAny(b.when)||0));
+      if (g.refunds.length) {
+        g.refunds.sort((a, b) => (getTimeFromAny(a.when) || 0) - (getTimeFromAny(b.when) || 0));
         refundDate = g.refunds[g.refunds.length - 1].when || '';
       }
 
-      g.sales.sort((a,b)=> (getTimeFromAny(a.when)||0) - (getTimeFromAny(b.when)||0));
+      g.sales.sort((a, b) => (getTimeFromAny(a.when) || 0) - (getTimeFromAny(b.when) || 0));
       const firstSale = g.sales[0];
       const nameN     = firstSale.name || '';
-      const meta      = respMap.get(nameN) || { email:'', phone:'' };
+      const meta      = respMap.get(nameN) || { email: '', phone: '' };
 
       let status = '결제완료';
-      if(refundAmount > 0){
+      if (refundAmount > 0) {
         status = (net === 0) ? '환불됨' : '부분환불';
       }
 
       const row = ensureArrayLen(14);
+
+      // 사유 → B, C 열 (전송 기준)
+      row[1] = g.reason || '';
+      row[2] = g.reason || '';
 
       row[3]  = nameN;
       row[4]  = meta.phone;
@@ -657,7 +657,7 @@
       out.push(row);
     }
 
-    out.sort((a,b)=> (getTimeFromAny(a[10]) || Infinity) - (getTimeFromAny(b[10]) || Infinity));
+    out.sort((a, b) => (getTimeFromAny(a[10]) || Infinity) - (getTimeFromAny(b[10]) || Infinity));
     return out;
   }
 
@@ -710,47 +710,44 @@
   window.addEventListener('unhandledrejection', e=> toast('처리되지 않은 오류: '+(e?.reason?.message||e.reason||'알 수 없는 오류'),'error'));
 
   document.addEventListener('DOMContentLoaded', ()=>{
-    // index.html에서 기존 토큰 불러오기
     loadTokenFromSession();
 
-    // 파일 업로드
+    // hidden input에 고정 ID 세팅
+    const sheetInput = $('#sheetUrl');
+    if(sheetInput) sheetInput.value = FIXED_SPREADSHEET_ID;
+
+    // 파일 업로드 (파일명은 input 기본 UI에 표시됨)
     $('#csvCard').addEventListener('change', async (e)=>{
       try{
         const f=e.target.files?.[0];
         if(!f){ toast('카드 CSV 선택이 비었습니다','error'); return; }
-        $('#nameCard').textContent = f.name;
         csvCard=await readCsv(f);
         const cnt=csvCard.filter(r=>Array.isArray(r)&&r.some(c=>String(c).trim()!=='')).length;
         toast(`카드 CSV 로드: ${csvCard.length}행 (유효 ${cnt}행)`, cnt?'ok':'error');
       }catch(err){ console.error(err); toast('카드 CSV 읽기 실패','error'); }
-      finally{ e.target.value=''; }
     }, {capture:true});
 
     $('#csvTicket').addEventListener('change', async (e)=>{
       try{
         const f=e.target.files?.[0];
         if(!f){ toast('tickets CSV 선택이 비었습니다','error'); return; }
-        $('#nameTicket').textContent = f.name;
         csvTickets=await readCsv(f);
         const cnt=csvTickets.filter(r=>Array.isArray(r)&&r.some(c=>String(c).trim()!=='')).length;
         toast(`tickets 로드: ${csvTickets.length}행 (유효 ${cnt}행)`, cnt?'ok':'error');
       }catch(err){ console.error(err); toast('tickets 읽기 실패','error'); }
-      finally{ e.target.value=''; }
     }, {capture:true});
 
     $('#csvResp').addEventListener('change', async (e)=>{
       try{
         const f=e.target.files?.[0];
         if(!f){ toast('responses CSV 선택이 비었습니다','error'); return; }
-        $('#nameResp').textContent = f.name;
         csvResp=await readCsv(f);
         const cnt=csvResp.filter(r=>Array.isArray(r)&&r.some(c=>String(c).trim()!=='')).length;
         toast(`responses 로드: ${csvResp.length}행 (유효 ${cnt}행)`, cnt?'ok':'error');
       }catch(err){ console.error(err); toast('responses 읽기 실패','error'); }
-      finally{ e.target.value=''; }
     }, {capture:true});
 
-    // 미리보기
+    // 미리보기 (로그인 불필요)
     $('#btnPreviewCsv').addEventListener('click', (e)=>{
       e.preventDefault();
       try{
@@ -774,7 +771,6 @@
       e.preventDefault();
       csvCard=[]; csvTickets=[]; csvResp=[]; parsedRows=[];
       $('#csvCard').value=''; $('#csvTicket').value=''; $('#csvResp').value='';
-      $('#nameCard').textContent=''; $('#nameTicket').textContent=''; $('#nameResp').textContent='';
       $('#previewTable').innerHTML=''; $('#summary').textContent='';
       toast('초기화 완료');
     });
@@ -783,20 +779,20 @@
     $('#btnLoadSheets').addEventListener('click', async (e)=>{
       e.preventDefault();
       try{
+        toast('시트 목록을 불러오는 중입니다...');  // 즉시 피드백
         await ensureAuth();
-        const spreadsheetId = parseSpreadsheetId($('#sheetUrl').value);
-        if(!spreadsheetId){ toast('스프레드시트 URL/ID를 입력하세요','error'); return; }
+        const spreadsheetId = parseSpreadsheetId();
         const titles = await listSheets(spreadsheetId);
         const sel = $('#sheetPicker'); sel.innerHTML='';
         if(!titles.length){
           sel.innerHTML = '<option value="">(시트 없음)</option>';
-          return;
+        }else{
+          titles.forEach(t => {
+            const opt = document.createElement('option');
+            opt.value = t; opt.textContent = t;
+            sel.appendChild(opt);
+          });
         }
-        titles.forEach(t => {
-          const opt = document.createElement('option');
-          opt.value = t; opt.textContent = t;
-          sel.appendChild(opt);
-        });
         toast(`시트 ${titles.length}개 불러옴`,'ok');
       }catch(err){
         console.error(err);
@@ -839,7 +835,7 @@
         label.textContent = 'Google 시트 연동 완료';
       }else{
         dot.style.background = '#cbd5f5';
-        label.textContent = '';
+        label.textContent = 'Google 시트 연동 준비 중';
       }
     };
 
