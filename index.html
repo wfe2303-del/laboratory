@@ -191,26 +191,31 @@
           </div>
 
           <div class="space-y-1.5 mt-1">
-            <!-- 시트 ID는 화면에 안 보이게 hidden input 으로만 보관 -->
-            <input id="sheetUrl" type="hidden" />
+  <!-- 시트 ID는 화면에 안 보이게 hidden input 으로만 보관 -->
+  <input id="sheetUrl" type="hidden" />
 
-            <div class="grid grid-cols-3 gap-2 items-end">
-              <div class="col-span-2">
-                <label class="block text-[11px] text-slate-600 mb-0.5">시트 선택</label>
-                <select id="sheetPicker"
-                        class="w-full bg-white border border-slate-300 rounded-lg px-2.5 py-1.5 text-[12px]">
-                  <option value="">(시트 목록)</option>
-                </select>
-              </div>
-              <div>
-                <button id="btnLoadSheets" type="button"
-                        class="w-full text-[11px] px-2.5 py-1.5 rounded-full border border-blue-500 bg-white text-blue-600 hover:bg-blue-50">
-                  불러오기
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
+  <!-- 검색 + 드롭다운(자동완성) -->
+  <div class="grid grid-cols-3 gap-2 items-end">
+    <div class="col-span-2">
+      <label class="block text-[11px] text-slate-600 mb-0.5">시트 검색</label>
+      <!-- 검색 인풋 + datalist -->
+      <input id="sheetSearch"
+             list="sheetList"
+             type="text"
+             class="w-full bg-white border border-slate-300 rounded-lg px-2.5 py-1.5 text-[12px]"
+             placeholder="시트 이름 입력 후 드롭다운에서 선택" />
+      <datalist id="sheetList"></datalist>
+    </div>
+    <div>
+      <button id="btnLoadSheets" type="button"
+              class="w-full text-[11px] px-2.5 py-1.5 rounded-full border border-blue-500 bg-white text-blue-600 hover:bg-blue-50">
+        불러오기
+      </button>
+    </div>
+  </div>
+</div>
+
+
 
         <div class="h-px bg-slate-100 my-1"></div>
 
@@ -284,6 +289,9 @@
 
   let parsedRows=[];               // 헤더+본체
   let csvCard=[], csvTickets=[], csvResp=[];
+
+let allSheetTitles = [];   // 불러온 전체 시트 이름 목록
+let currentSheetName = ''; // 최종 선택된 시트 이름
 
   const $ = (q)=>document.querySelector(q);
   const toast = (msg, type="info")=>{
@@ -436,7 +444,7 @@
   async function writeFromB2(values){
     const spreadsheetId = parseSpreadsheetId();
     if(!spreadsheetId) { toast('스프레드시트 ID가 설정되지 않았습니다.','error'); throw new Error('no sheet'); }
-    const sheetName = ($('#sheetPicker').value || 'Sheet1');
+    const sheetName = (currentSheetName || allSheetTitles[0] || 'Sheet1');
     const valueInputOption = $('#valueInputOption').value;
 
     await clearRange(spreadsheetId, `${sheetName}!B2:N`);
@@ -775,30 +783,38 @@
       toast('초기화 완료');
     });
 
-    // 시트 목록 불러오기
-    $('#btnLoadSheets').addEventListener('click', async (e)=>{
-      e.preventDefault();
-      try{
-        toast('시트 목록을 불러오는 중입니다...');  // 즉시 피드백
-        await ensureAuth();
-        const spreadsheetId = parseSpreadsheetId();
-        const titles = await listSheets(spreadsheetId);
-        const sel = $('#sheetPicker'); sel.innerHTML='';
-        if(!titles.length){
-          sel.innerHTML = '<option value="">(시트 없음)</option>';
-        }else{
-          titles.forEach(t => {
-            const opt = document.createElement('option');
-            opt.value = t; opt.textContent = t;
-            sel.appendChild(opt);
-          });
-        }
-        toast(`시트 ${titles.length}개 불러옴`,'ok');
-      }catch(err){
-        console.error(err);
-        toast(err?.message || '시트 목록 불러오기 실패','error');
-      }
+   // 시트 목록 불러오기
+$('#btnLoadSheets').addEventListener('click', async (e)=>{
+  e.preventDefault();
+  try{
+    toast('시트 목록을 불러오는 중입니다...');
+    await ensureAuth();
+    const spreadsheetId = parseSpreadsheetId();
+    const titles = await listSheets(spreadsheetId);
+
+    allSheetTitles = titles || [];
+
+    const dl = $('#sheetList');
+    dl.innerHTML = '';
+    allSheetTitles.forEach(t=>{
+      const opt = document.createElement('option');
+      opt.value = t;
+      dl.appendChild(opt);
     });
+
+    // 기본 선택값 초기화
+    currentSheetName = allSheetTitles[0] || '';
+    if (currentSheetName && $('#sheetSearch')) {
+      $('#sheetSearch').value = currentSheetName;
+    }
+
+    toast(`시트 ${allSheetTitles.length}개 불러옴`,'ok');
+  }catch(err){
+    console.error(err);
+    toast(err?.message || '시트 목록 불러오기 실패','error');
+  }
+});
+
 
     // 전송
     $('#btnSend').addEventListener('click', async (e)=>{
