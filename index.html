@@ -15,7 +15,7 @@
   <style>
     body{
       margin:0;
-      background:#f1f5f9; /* 연한 회색 배경 */
+      background:#f1f5f9;
       color:#0f172a;
       font:13px/1.5 system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial;
     }
@@ -53,26 +53,14 @@
       font-size:11px;
     }
     table.preview th{
-      background:#eff6ff;        /* 연파랑 헤더 */
+      background:#eff6ff;
       position:sticky;
       top:0;
       z-index:1;
       color:#1e293b;
     }
     .invalid{background:#fef2f2;color:#b91c1c}
-    .fname{display:none;} /* 아래 회색 파일명 표시 안 함 */
-    .badge-blue{
-      background:#eff6ff;
-      color:#1d4ed8;
-      border-radius:999px;
-      padding:2px 8px;
-      font-size:10px;
-      border:1px solid #bfdbfe;
-    }
-    .tag-red{
-      color:#b91c1c;
-      font-weight:600;
-    }
+    .fname{display:none;} /* 아래 회색 파일명 숨김 */
   </style>
 </head>
 <body class="min-h-screen">
@@ -191,31 +179,29 @@
           </div>
 
           <div class="space-y-1.5 mt-1">
-  <!-- 시트 ID는 화면에 안 보이게 hidden input 으로만 보관 -->
-  <input id="sheetUrl" type="hidden" />
+            <!-- 고정 시트ID (hidden) -->
+            <input id="sheetUrl" type="hidden" />
 
-  <!-- 검색 + 드롭다운(자동완성) -->
-  <div class="grid grid-cols-3 gap-2 items-end">
-    <div class="col-span-2">
-      <label class="block text-[11px] text-slate-600 mb-0.5">시트 검색</label>
-      <!-- 검색 인풋 + datalist -->
-      <input id="sheetSearch"
-             list="sheetList"
-             type="text"
-             class="w-full bg-white border border-slate-300 rounded-lg px-2.5 py-1.5 text-[12px]"
-             placeholder="시트 이름 입력 후 드롭다운에서 선택" />
-      <datalist id="sheetList"></datalist>
-    </div>
-    <div>
-      <button id="btnLoadSheets" type="button"
-              class="w-full text-[11px] px-2.5 py-1.5 rounded-full border border-blue-500 bg-white text-blue-600 hover:bg-blue-50">
-        불러오기
-      </button>
-    </div>
-  </div>
-</div>
-
-
+            <!-- 검색 + 드롭다운(datalist) -->
+            <div class="grid grid-cols-3 gap-2 items-end">
+              <div class="col-span-2">
+                <label class="block text-[11px] text-slate-600 mb-0.5">시트 검색</label>
+                <input id="sheetSearch"
+                       list="sheetList"
+                       type="text"
+                       class="w-full bg-white border border-slate-300 rounded-lg px-2.5 py-1.5 text-[12px]"
+                       placeholder="시트 이름 입력 후 드롭다운에서 선택" />
+                <datalist id="sheetList"></datalist>
+              </div>
+              <div>
+                <button id="btnLoadSheets" type="button"
+                        class="w-full text-[11px] px-2.5 py-1.5 rounded-full border border-blue-500 bg-white text-blue-600 hover:bg-blue-50">
+                  불러오기
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
 
         <div class="h-px bg-slate-100 my-1"></div>
 
@@ -279,8 +265,6 @@
   /* =================== 기본 설정 =================== */
   const OAUTH_CLIENT_ID = "18228268359-iifm4ck3j9kqj74eh1p90tco1k2mbpi0.apps.googleusercontent.com";
   const OAUTH_SCOPES   = "https://www.googleapis.com/auth/spreadsheets https://www.googleapis.com/auth/drive.readonly";
-
-  // 고정 스프레드시트 ID
   const FIXED_SPREADSHEET_ID = "1qclrbo3_VG-sSNIqMW4j1juzwP3nq_ZaT-y1z6WLafc";
 
   let tokenClient = null;
@@ -289,9 +273,8 @@
 
   let parsedRows=[];               // 헤더+본체
   let csvCard=[], csvTickets=[], csvResp=[];
-
-let allSheetTitles = [];   // 불러온 전체 시트 이름 목록
-let currentSheetName = ''; // 최종 선택된 시트 이름
+  let allSheetTitles = [];         // 스프레드시트 내 시트 이름 목록
+  let currentSheetName = "";       // 선택된 시트 이름
 
   const $ = (q)=>document.querySelector(q);
   const toast = (msg, type="info")=>{
@@ -444,7 +427,13 @@ let currentSheetName = ''; // 최종 선택된 시트 이름
   async function writeFromB2(values){
     const spreadsheetId = parseSpreadsheetId();
     if(!spreadsheetId) { toast('스프레드시트 ID가 설정되지 않았습니다.','error'); throw new Error('no sheet'); }
+
     const sheetName = (currentSheetName || allSheetTitles[0] || 'Sheet1');
+    if(!sheetName){
+      toast('시트를 먼저 불러오고 선택해주세요.','error');
+      throw new Error('no sheetName');
+    }
+
     const valueInputOption = $('#valueInputOption').value;
 
     await clearRange(spreadsheetId, `${sheetName}!B2:N`);
@@ -523,19 +512,20 @@ let currentSheetName = ''; // 최종 선택된 시트 이름
     return out;
   }
 
-  /* ===== 계좌: 새 포맷 ===== */
+  /* ===== 계좌: 새 포맷 (A/B 날짜·시간, F=환불, G=결제, V=그룹, K=사유) ===== */
   function makeBankRows(tickets, responses, skipT = true, skipR = true) {
     if (!tickets.length) return [];
 
-    const IDX_DATE   = 0;
-    const IDX_TIME   = 1;
-    const IDX_REFUND = 5;
-    const IDX_SALE   = 6;
-    const IDX_REASON = 10;
-    const IDX_GROUP  = 21;
+    const IDX_DATE   = 0;   // A열
+    const IDX_TIME   = 1;   // B열
+    const IDX_REFUND = 5;   // F열: 환불금액
+    const IDX_SALE   = 6;   // G열: 결제금액
+    const IDX_REASON = 10;  // K열: 사유
+    const IDX_GROUP  = 21;  // V열: 그룹 키
 
     const tHead = tickets[0] || [];
 
+    // 신청/응답 매핑
     const rHead = responses[0] || [];
     const rName  = findColIndex(rHead, ['성함','이름','신청자','name']);
     const rEmail = findColIndex(rHead, ['이메일','email']);
@@ -558,6 +548,7 @@ let currentSheetName = ''; // 최종 선택된 시트 이름
       }
     }
 
+    // 입금자 이름 추출
     const cName  = findColIndex(tHead, ['보낸분/받는분','거래상대명','거래처','성명','상대']);
     const cPlace = findColIndex(tHead, ['사용처','적요','내용','메모']);
     const cNote  = findColIndex(tHead, ['계좌적요']);
@@ -591,7 +582,6 @@ let currentSheetName = ''; // 최종 선택된 시트 이름
 
       const saleRaw   = parseMoney(r[IDX_SALE]);
       const refundRaw = parseMoney(r[IDX_REFUND]);
-
       if (!saleRaw && !refundRaw) continue;
 
       const nameN = pickCounterpartyName(r);
@@ -646,7 +636,7 @@ let currentSheetName = ''; // 최종 선택된 시트 이름
 
       const row = ensureArrayLen(14);
 
-      // 사유 → B, C 열 (전송 기준)
+      // 사유 → B, C
       row[1] = g.reason || '';
       row[2] = g.reason || '';
 
@@ -720,11 +710,11 @@ let currentSheetName = ''; // 최종 선택된 시트 이름
   document.addEventListener('DOMContentLoaded', ()=>{
     loadTokenFromSession();
 
-    // hidden input에 고정 ID 세팅
+    // hidden 시트ID 세팅
     const sheetInput = $('#sheetUrl');
     if(sheetInput) sheetInput.value = FIXED_SPREADSHEET_ID;
 
-    // 파일 업로드 (파일명은 input 기본 UI에 표시됨)
+    // 파일 업로드
     $('#csvCard').addEventListener('change', async (e)=>{
       try{
         const f=e.target.files?.[0];
@@ -783,48 +773,69 @@ let currentSheetName = ''; // 최종 선택된 시트 이름
       toast('초기화 완료');
     });
 
-   // 시트 목록 불러오기
-$('#btnLoadSheets').addEventListener('click', async (e)=>{
-  e.preventDefault();
-  try{
-    toast('시트 목록을 불러오는 중입니다...');
-    await ensureAuth();
-    const spreadsheetId = parseSpreadsheetId();
-    const titles = await listSheets(spreadsheetId);
+    // 시트 목록 불러오기
+    $('#btnLoadSheets').addEventListener('click', async (e)=>{
+      e.preventDefault();
+      try{
+        toast('시트 목록을 불러오는 중입니다...');
+        await ensureAuth();
+        const spreadsheetId = parseSpreadsheetId();
+        const titles = await listSheets(spreadsheetId);
 
-    allSheetTitles = titles || [];
+        allSheetTitles = titles || [];
 
-    const dl = $('#sheetList');
-    dl.innerHTML = '';
-    allSheetTitles.forEach(t=>{
-      const opt = document.createElement('option');
-      opt.value = t;
-      dl.appendChild(opt);
+        const dl = $('#sheetList');
+        dl.innerHTML = '';
+        allSheetTitles.forEach(t=>{
+          const opt = document.createElement('option');
+          opt.value = t;
+          dl.appendChild(opt);
+        });
+
+        currentSheetName = allSheetTitles[0] || '';
+        const searchInput = $('#sheetSearch');
+        if (currentSheetName && searchInput) {
+          searchInput.value = currentSheetName;
+        }
+
+        toast(`시트 ${allSheetTitles.length}개 불러옴`,'ok');
+      }catch(err){
+        console.error(err);
+        toast(err?.message || '시트 목록 불러오기 실패','error');
+      }
     });
 
-    // 기본 선택값 초기화
-    currentSheetName = allSheetTitles[0] || '';
-    if (currentSheetName && $('#sheetSearch')) {
-      $('#sheetSearch').value = currentSheetName;
+    // 시트 검색 인풋에서 선택 적용
+    const searchInput = $('#sheetSearch');
+    if (searchInput) {
+      searchInput.addEventListener('change', (e)=>{
+        const val = (e.target.value || '').trim();
+        if (!val) return;
+        if (!allSheetTitles.includes(val)) {
+          toast('해당 이름의 시트를 찾을 수 없습니다. 드롭다운에서 선택해주세요.','error');
+          currentSheetName = '';
+          return;
+        }
+        currentSheetName = val;
+        toast(`선택된 시트: ${currentSheetName}`,'ok');
+      });
     }
-
-    toast(`시트 ${allSheetTitles.length}개 불러옴`,'ok');
-  }catch(err){
-    console.error(err);
-    toast(err?.message || '시트 목록 불러오기 실패','error');
-  }
-});
-
 
     // 전송
     $('#btnSend').addEventListener('click', async (e)=>{
       e.preventDefault();
       try{
         await ensureAuth();
-        if(!parsedRows.length){ toast('먼저 정리 미리보기를 실행하세요','error'); return; }
+        if(!parsedRows.length){
+          toast('먼저 정리 미리보기를 실행하세요','error');
+          return;
+        }
         const hasHeader=$('#optHasHeader').checked;
         const rowsToSend=hasHeader? parsedRows.slice(1): parsedRows;
-        if(!rowsToSend.length){ toast('전송할 데이터 행이 없습니다','error'); return; }
+        if(!rowsToSend.length){
+          toast('전송할 데이터 행이 없습니다','error');
+          return;
+        }
         $('#btnSend').disabled=true;
         const updated=await writeFromB2(rowsToSend);
         toast(`전송 완료: ${updated}행`,'ok');
