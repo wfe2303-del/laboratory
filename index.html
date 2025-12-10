@@ -79,20 +79,42 @@
   <!-- 상단 바 -->
   <header>
     <div class="max-w-5xl mx-auto px-4 py-2.5 flex items-center justify-between gap-3">
-      <div class="flex items-center gap-2">
-        <div class="w-7 h-7 rounded-lg bg-gradient-to-tr from-red-500 to-blue-500 flex items-center justify-center text-xs font-bold text-white shadow-sm">
-          CA
-        </div>
+      <div class="flex items-center gap-3">
+        <!-- ClassAround 로고 (카톡 입장자 체크와 동일 스타일) -->
+        <svg class="w-20 h-11" viewBox="0 0 90 50" role="img" aria-label="ClassAround">
+          <rect width="90" height="50" rx="10" fill="white"/>
+          <circle cx="66" cy="10" r="8" fill="#6b8bd6"/>
+          <circle cx="80" cy="18" r="5" fill="#ef4444"/>
+          <text x="8" y="24"
+                style="font-family:'Nunito','Arial Rounded MT','SF Pro Rounded','Quicksand','Pretendard','Noto Sans KR',sans-serif;
+                       font-weight:900; letter-spacing:-0.2px; fill:#0f172a; font-size:18px;
+                       paint-order:stroke fill; stroke:#0f172a; stroke-width:.9px;">
+            Class
+          </text>
+          <text x="8" y="42"
+                style="font-family:'Nunito','Arial Rounded MT','SF Pro Rounded','Quicksand','Pretendard','Noto Sans KR',sans-serif;
+                       font-weight:900; letter-spacing:-0.2px; fill:#0f172a; font-size:18px;
+                       paint-order:stroke fill; stroke:#0f172a; stroke-width:.9px;">
+            Around
+          </text>
+        </svg>
         <div class="flex flex-col">
-          <span class="text-xs font-semibold text-slate-900">수강생 시트 자동 업데이트</span>
-          <span class="text-[11px] text-slate-500"></div>
+          <span class="text-[11px] font-semibold text-slate-700">
+          <span class="text-xs md:text-sm font-bold text-slate-900">수강생 시트 업데이트</span>
+        </div>
       </div>
-      <div class="flex items-center gap-3 text-[11px]">
+      <div class="flex items-center gap-2 md:gap-3 text-[11px]">
         <div class="flex items-center gap-1">
           <span id="authStateDot" class="inline-block w-2 h-2 rounded-full bg-slate-300"></span>
           <span id="authState" class="text-slate-500">Google 시트 연동 준비 중</span>
         </div>
-        <a href="index.html" class="px-2.5 py-1 rounded-full border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 text-[11px]">
+        <button id="btnAuthRefresh"
+                type="button"
+                class="px-2.5 py-1 rounded-full border border-sky-500 bg-white text-sky-600 hover:bg-sky-50 text-[11px]">
+          Google 인증
+        </button>
+        <a href="index.html"
+           class="px-2.5 py-1 rounded-full border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 text-[11px]">
           메인으로
         </a>
       </div>
@@ -100,10 +122,6 @@
   </header>
 
   <main class="max-w-5xl mx-auto px-4 py-4 space-y-3">
-    <!-- 상단 설명 -->
-      </div>
-    </section>
-
     <!-- 중단: 좌측 업로드 / 우측 시트 설정 + 실행 버튼 -->
     <section class="grid md:grid-cols-2 gap-3">
       <!-- 왼쪽: CSV 업로드 패널 -->
@@ -264,10 +282,13 @@
   <script>
   /* =================== 기본 설정 =================== */
   const OAUTH_CLIENT_ID = "18228268359-iifm4ck3j9kqj74eh1p90tco1k2mbpi0.apps.googleusercontent.com";
-  const OAUTH_SCOPES   = "https://www.googleapis.com/auth/spreadsheets";
+  const OAUTH_SCOPES   = "https://www.googleapis.com/auth/spreadsheets https://www.googleapis.com/auth/drive.readonly";
 
-  let tokenClient=null, oauthReady=false;
-  let parsedRows=[];                 // 헤더+본체
+  let tokenClient = null;
+  let oauthReady  = false;
+  let accessToken = null;          // index.html에서 저장한 토큰 재사용 + 이 페이지에서 재인증
+
+  let parsedRows=[];               // 헤더+본체
   let csvCard=[], csvTickets=[], csvResp=[];
 
   const $ = (q)=>document.querySelector(q);
@@ -350,24 +371,63 @@
       });
     });
   }
-  async function ensureAuth(){
-    if(!window.google?.accounts?.oauth2) throw new Error('GIS not loaded');
+
+  // index.html에서 저장된 토큰 불러오기
+  function loadTokenFromSession(){
+    const saved = sessionStorage.getItem("ca_gapi_token");
+    if(saved){
+      accessToken = saved;
+      oauthReady  = true;
+    }
+  }
+
+  // 이 페이지에서 직접 Google 인증 호출
+  function initGoogleAuth(){
+    if(!window.google?.accounts?.oauth2){
+      toast('Google 로그인 스크립트를 불러오는 중입니다. 잠시 후 다시 시도해주세요.','error');
+      return;
+    }
     if(!tokenClient){
       tokenClient = google.accounts.oauth2.initTokenClient({
         client_id: OAUTH_CLIENT_ID,
         scope: OAUTH_SCOPES,
         callback: (resp)=>{
           if(resp?.access_token){
-            gapi.client.setToken({access_token:resp.access_token});
-            oauthReady=true;
+            accessToken = resp.access_token;
+            sessionStorage.setItem("ca_gapi_token", accessToken);
+            if(window.gapi?.client){
+              gapi.client.setToken({access_token:accessToken});
+            }
+            oauthReady = true;
             updateAuthUI();
-            toast('Google 시트 권한 확인 완료','ok');
-          } else toast('인증 실패','error');
+            toast('Google 인증 완료','ok');
+          }else{
+            toast('인증 실패','error');
+          }
         }
       });
     }
-    if(!oauthReady) tokenClient.requestAccessToken({prompt:'consent'});
+    tokenClient.requestAccessToken({prompt:'consent'});
   }
+
+  // 실제 API 호출 전에 토큰 세팅만 확인
+  async function ensureAuth(){
+    await ensureGapiLoaded();
+    if(accessToken){
+      gapi.client.setToken({access_token:accessToken});
+      return;
+    }
+    const saved = sessionStorage.getItem("ca_gapi_token");
+    if(saved){
+      accessToken = saved;
+      gapi.client.setToken({access_token:accessToken});
+      oauthReady = true;
+      updateAuthUI();
+      return;
+    }
+    throw new Error('⚠ Google 인증이 필요합니다. 상단의 [Google 인증] 버튼을 눌러주세요.');
+  }
+
   function parseSpreadsheetId(input){
     if(!input) return '';
     const m=input.match(/\/spreadsheets\/d\/([a-zA-Z0-9-_]+)/);
@@ -383,6 +443,7 @@
   async function clearRange(spreadsheetId, range){
     return await gapi.client.sheets.spreadsheets.values.clear({ spreadsheetId, range });
   }
+
   async function writeFromB2(values){
     const spreadsheetId = parseSpreadsheetId($('#sheetUrl').value);
     if(!spreadsheetId) { toast('스프레드시트 URL/ID를 입력하세요','error'); throw new Error('no sheet'); }
@@ -421,8 +482,7 @@
           const fr=new FileReader();
           fr.onload=()=>{
             const parsed=Papa.parse(String(fr.result||''),{skipEmptyLines:'greedy'});
-            let r=Array.isArray(parsed.data)?parsed.data:[];
-            r=r.map(x=>Array.isArray(x)?x:[x]);
+            let r=Array.isArray(parsed.data)?parsed.data:[]; r=r.map(x=>Array.isArray(x)?x:[x]);
             const c=r.filter(x=>x.some(y=>String(y).trim()!=='')).length;
             if(c>0 || idx>=tryEnc.length-1) resolve(r);
             else { idx++; fr.readAsText(file, tryEnc[idx]); }
@@ -434,8 +494,7 @@
           const fr=new FileReader();
           fr.onload=()=>{
             const parsed=Papa.parse(String(fr.result||''),{skipEmptyLines:'greedy'});
-            let r=Array.isArray(parsed.data)?parsed.data:[];
-            r=r.map(x=>Array.isArray(x)?x:[x]);
+            let r=Array.isArray(parsed.data)?parsed.data:[]; r=r.map(x=>Array.isArray(x)?x:[x]);
             resolve(r);
           };
           fr.onerror=()=>resolve([]);
@@ -651,6 +710,9 @@
   window.addEventListener('unhandledrejection', e=> toast('처리되지 않은 오류: '+(e?.reason?.message||e.reason||'알 수 없는 오류'),'error'));
 
   document.addEventListener('DOMContentLoaded', ()=>{
+    // index.html에서 기존 토큰 불러오기
+    loadTokenFromSession();
+
     // 파일 업로드
     $('#csvCard').addEventListener('change', async (e)=>{
       try{
@@ -721,7 +783,6 @@
     $('#btnLoadSheets').addEventListener('click', async (e)=>{
       e.preventDefault();
       try{
-        await ensureGapiLoaded();
         await ensureAuth();
         const spreadsheetId = parseSpreadsheetId($('#sheetUrl').value);
         if(!spreadsheetId){ toast('스프레드시트 URL/ID를 입력하세요','error'); return; }
@@ -737,14 +798,16 @@
           sel.appendChild(opt);
         });
         toast(`시트 ${titles.length}개 불러옴`,'ok');
-      }catch(err){ console.error(err); toast('시트 목록 불러오기 실패','error'); }
+      }catch(err){
+        console.error(err);
+        toast(err?.message || '시트 목록 불러오기 실패','error');
+      }
     });
 
     // 전송
     $('#btnSend').addEventListener('click', async (e)=>{
       e.preventDefault();
       try{
-        await ensureGapiLoaded();
         await ensureAuth();
         if(!parsedRows.length){ toast('먼저 정리 미리보기를 실행하세요','error'); return; }
         const hasHeader=$('#optHasHeader').checked;
@@ -753,22 +816,33 @@
         $('#btnSend').disabled=true;
         const updated=await writeFromB2(rowsToSend);
         toast(`전송 완료: ${updated}행`,'ok');
-      }catch(err){ console.error(err); toast('전송 실패: 콘솔 확인','error'); }
-      finally{ $('#btnSend').disabled=false; }
+      }catch(err){
+        console.error(err);
+        toast(err?.message || '전송 실패: 콘솔 확인','error');
+      }finally{
+        $('#btnSend').disabled=false;
+      }
+    });
+
+    // 상단 Google 인증 버튼
+    $('#btnAuthRefresh').addEventListener('click', (e)=>{
+      e.preventDefault();
+      initGoogleAuth();
     });
 
     window.updateAuthUI = ()=>{
       const dot = $('#authStateDot');
       const label = $('#authState');
       if(!dot || !label) return;
-      if(oauthReady){
+      if(accessToken){
         dot.style.background = '#22c55e';
         label.textContent = 'Google 시트 연동 완료';
       }else{
         dot.style.background = '#cbd5f5';
-        label.textContent = 'Google 시트 연동 필요 시 자동 요청';
+        label.textContent = '';
       }
     };
+
     updateAuthUI();
   });
   </script>
