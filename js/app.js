@@ -164,7 +164,7 @@
     ui.openSheetPickerModal({
       panelId: panelId,
       title: '패널 ' + panelState.id + ' · 탭 선택',
-      subtitle: '현재 불러온 탭 목록에서 선택하세요.',
+      subtitle: '',
       titles: state.sheetTitles,
       selectedTitle: panelState.selectedSheet,
       onSelect: function(title){
@@ -185,7 +185,7 @@
     return {
       panelId: panelState.id,
       title: '패널 ' + panelState.id + ' · 로그 파일 관리',
-      subtitle: 'txt/csv 파일을 여러 개 누적해서 추가할 수 있습니다.',
+      subtitle: '',
       files: panelState.files,
       onAddRequest: function(){
         var input = utils.qs('.js-file-input', panelState.el);

@@ -126,46 +126,99 @@
       root.innerHTML = '<div class="empty-state">결과가 없습니다.</div>';
       return;
     }
+
+    var summarySection = null;
+    var listSections = [];
     sections.forEach(function(section){
-      var card = document.createElement('div');
-      card.className = 'result-card';
-      var title = document.createElement('h3');
-      title.textContent = section.title;
-      card.appendChild(title);
-      if(!section.rows.length){
-        var empty = document.createElement('div');
-        empty.className = 'empty-state';
-        empty.textContent = '데이터 없음';
-        card.appendChild(empty);
-      } else {
-        var wrap = document.createElement('div');
-        wrap.className = 'table-wrap';
-        var table = document.createElement('table');
-        var thead = document.createElement('thead');
-        var headerRow = document.createElement('tr');
-        section.headers.forEach(function(header){
-          var th = document.createElement('th');
-          th.textContent = header;
-          headerRow.appendChild(th);
-        });
-        thead.appendChild(headerRow);
-        table.appendChild(thead);
-        var tbody = document.createElement('tbody');
-        section.rows.forEach(function(row){
-          var tr = document.createElement('tr');
-          row.forEach(function(cell){
-            var td = document.createElement('td');
-            td.textContent = cell == null ? '' : String(cell);
-            tr.appendChild(td);
-          });
-          tbody.appendChild(tr);
-        });
-        table.appendChild(tbody);
-        wrap.appendChild(table);
-        card.appendChild(wrap);
-      }
-      root.appendChild(card);
+      if(section.title === '로그 요약') summarySection = section;
+      else listSections.push(section);
     });
+
+    if(listSections.length){
+      var buttonGrid = document.createElement('div');
+      buttonGrid.className = 'result-button-grid';
+      listSections.forEach(function(section){
+        var button = document.createElement('button');
+        button.type = 'button';
+        button.className = 'result-open-btn';
+        var titleWrap = document.createElement('span');
+        titleWrap.textContent = section.title;
+        var badge = document.createElement('span');
+        badge.className = 'result-count-badge';
+        badge.textContent = String(section.rows ? section.rows.length : 0);
+        button.appendChild(titleWrap);
+        button.appendChild(badge);
+        button.addEventListener('click', function(){
+          openSectionResultModal(section);
+        });
+        buttonGrid.appendChild(button);
+      });
+      root.appendChild(buttonGrid);
+    }
+
+    if(summarySection && summarySection.rows && summarySection.rows[0]){
+      var summaryCard = document.createElement('div');
+      summaryCard.className = 'result-summary-card';
+      var title = document.createElement('h3');
+      title.className = 'result-summary-title';
+      title.textContent = summarySection.title;
+      summaryCard.appendChild(title);
+      var summaryGrid = document.createElement('div');
+      summaryGrid.className = 'result-summary-grid';
+      summarySection.headers.forEach(function(header, index){
+        var stat = document.createElement('div');
+        stat.className = 'result-stat';
+        var label = document.createElement('span');
+        label.className = 'result-stat-label';
+        label.textContent = header;
+        var value = document.createElement('strong');
+        value.className = 'result-stat-value';
+        value.textContent = summarySection.rows[0][index] == null ? '' : String(summarySection.rows[0][index]);
+        stat.appendChild(label);
+        stat.appendChild(value);
+        summaryGrid.appendChild(stat);
+      });
+      summaryCard.appendChild(summaryGrid);
+      root.appendChild(summaryCard);
+    }
+  }
+
+  function openSectionResultModal(section){
+    openModal(section.title, (section.rows && section.rows.length ? section.rows.length + '건' : '데이터 없음'));
+    modalState = { type: 'result-section', title: section.title };
+    var els = modalEls();
+    if(!section.rows || !section.rows.length){
+      var empty = document.createElement('div');
+      empty.className = 'empty-state';
+      empty.textContent = '데이터 없음';
+      els.body.appendChild(empty);
+      return;
+    }
+    var wrap = document.createElement('div');
+    wrap.className = 'table-wrap';
+    var table = document.createElement('table');
+    var thead = document.createElement('thead');
+    var headerRow = document.createElement('tr');
+    (section.headers || []).forEach(function(header){
+      var th = document.createElement('th');
+      th.textContent = header;
+      headerRow.appendChild(th);
+    });
+    thead.appendChild(headerRow);
+    table.appendChild(thead);
+    var tbody = document.createElement('tbody');
+    (section.rows || []).forEach(function(row){
+      var tr = document.createElement('tr');
+      row.forEach(function(cell){
+        var td = document.createElement('td');
+        td.textContent = cell == null ? '' : String(cell);
+        tr.appendChild(td);
+      });
+      tbody.appendChild(tr);
+    });
+    table.appendChild(tbody);
+    wrap.appendChild(table);
+    els.body.appendChild(wrap);
   }
 
   function openSheetPickerModal(options){
