@@ -1,5 +1,52 @@
 (function(){
   var utils = window.KakaoCheckUtils;
+  var modalState = null;
+
+  function modalEls(){
+    return {
+      overlay: document.getElementById('modalOverlay'),
+      title: document.getElementById('modalTitle'),
+      subtitle: document.getElementById('modalSubtitle'),
+      body: document.getElementById('modalBody'),
+      closeBtn: document.getElementById('modalCloseBtn')
+    };
+  }
+
+  function bindModalShell(){
+    var els = modalEls();
+    if(!els.overlay || els.overlay.dataset.bound === '1') return;
+    els.overlay.dataset.bound = '1';
+    els.closeBtn.addEventListener('click', closeModal);
+    els.overlay.addEventListener('click', function(event){
+      if(event.target === els.overlay) closeModal();
+    });
+    document.addEventListener('keydown', function(event){
+      if(event.key === 'Escape' && modalState) closeModal();
+    });
+  }
+
+  function openModal(title, subtitle){
+    bindModalShell();
+    var els = modalEls();
+    els.title.textContent = title || '';
+    els.subtitle.textContent = subtitle || '';
+    els.body.innerHTML = '';
+    els.overlay.classList.remove('hidden');
+    els.overlay.setAttribute('aria-hidden', 'false');
+  }
+
+  function closeModal(){
+    var els = modalEls();
+    if(!els.overlay) return;
+    els.overlay.classList.add('hidden');
+    els.overlay.setAttribute('aria-hidden', 'true');
+    els.body.innerHTML = '';
+    modalState = null;
+  }
+
+  function getModalState(){
+    return modalState;
+  }
 
   function setAuthState(state){
     var authState = document.getElementById('authState');
@@ -40,21 +87,9 @@
     return node;
   }
 
-  function fillSheetOptions(panelEl, titles, selectedTitle){
-    var select = utils.qs('.js-sheet-select', panelEl);
-    if(!select) return;
-    select.innerHTML = '';
-    if(!titles.length){
-      select.appendChild(new Option('(탭 없음)', ''));
-      return;
-    }
-    select.appendChild(new Option('탭 선택', ''));
-    titles.forEach(function(title){
-      select.appendChild(new Option(title, title));
-    });
-    if(selectedTitle && titles.indexOf(selectedTitle) >= 0){
-      select.value = selectedTitle;
-    }
+  function renderSelectedSheet(panelEl, sheetTitle){
+    var node = utils.qs('.js-selected-sheet', panelEl);
+    if(node) node.textContent = sheetTitle || '탭 미선택';
   }
 
   function renderFileSummary(panelEl, files){
@@ -68,12 +103,7 @@
       summary.textContent = files[0].name;
       return;
     }
-    var names = files.slice(0, 3).map(function(file){ return file.name; }).join(', ');
-    if(files.length <= 3){
-      summary.textContent = files.length + '개 파일 선택됨 · ' + names;
-      return;
-    }
-    summary.textContent = files.length + '개 파일 선택됨 · ' + names + ' 외 ' + (files.length - 3) + '개';
+    summary.textContent = files.length + '개 파일';
   }
 
   function setPanelStatus(panelEl, message, kind){
@@ -138,16 +168,140 @@
     });
   }
 
+  function openSheetPickerModal(options){
+    openModal(options.title || '탭 선택', options.subtitle || '탭을 골라주세요.');
+    modalState = { type: 'sheet-picker', panelId: options.panelId };
+    var els = modalEls();
+    var search = document.createElement('input');
+    search.className = 'input modal-search';
+    search.type = 'text';
+    search.placeholder = '탭 이름 검색';
+    search.value = options.initialQuery || '';
+    var list = document.createElement('div');
+    list.className = 'modal-list';
+
+    function renderList(){
+      var query = String(search.value || '').trim().toLowerCase();
+      list.innerHTML = '';
+      var filtered = (options.titles || []).filter(function(title){
+        return !query || title.toLowerCase().indexOf(query) >= 0;
+      });
+      if(!filtered.length){
+        var empty = document.createElement('div');
+        empty.className = 'file-empty';
+        empty.textContent = '검색 결과가 없습니다.';
+        list.appendChild(empty);
+        return;
+      }
+      filtered.forEach(function(titleText){
+        var btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'modal-list-btn' + (titleText === options.selectedTitle ? ' active' : '');
+        btn.textContent = titleText;
+        btn.addEventListener('click', function(){
+          options.onSelect(titleText);
+          closeModal();
+        });
+        list.appendChild(btn);
+      });
+    }
+
+    search.addEventListener('input', renderList);
+    els.body.appendChild(search);
+    els.body.appendChild(list);
+    renderList();
+    search.focus();
+  }
+
+  function openFileManagerModal(options){
+    openModal(options.title || '로그 파일 관리', options.subtitle || 'txt/csv 로그 파일을 추가하거나 정리하세요.');
+    modalState = { type: 'file-manager', panelId: options.panelId };
+    var els = modalEls();
+    var actions = document.createElement('div');
+    actions.className = 'file-manager-actions';
+    var addBtn = document.createElement('button');
+    addBtn.type = 'button';
+    addBtn.className = 'btn btn-primary';
+    addBtn.textContent = '파일 추가';
+    addBtn.addEventListener('click', function(){
+      options.onAddRequest();
+    });
+    actions.appendChild(addBtn);
+
+    var clearBtn = document.createElement('button');
+    clearBtn.type = 'button';
+    clearBtn.className = 'btn';
+    clearBtn.textContent = '전체 비우기';
+    clearBtn.addEventListener('click', function(){
+      options.onClearAll();
+      openFileManagerModal(options.getFreshOptions());
+    });
+    actions.appendChild(clearBtn);
+    els.body.appendChild(actions);
+
+    var list = document.createElement('div');
+    list.className = 'modal-list';
+    if(!options.files.length){
+      var empty = document.createElement('div');
+      empty.className = 'file-empty';
+      empty.textContent = '추가된 파일이 없습니다.';
+      list.appendChild(empty);
+    } else {
+      options.files.forEach(function(file, index){
+        var item = document.createElement('div');
+        item.className = 'file-item';
+        var main = document.createElement('div');
+        main.className = 'file-item-main';
+        var name = document.createElement('div');
+        name.className = 'file-name';
+        name.textContent = file.name;
+        var meta = document.createElement('div');
+        meta.className = 'file-meta';
+        meta.textContent = [formatBytes(file.size), file.lastModified ? new Date(file.lastModified).toLocaleString('ko-KR') : ''].filter(Boolean).join(' · ');
+        main.appendChild(name);
+        main.appendChild(meta);
+        item.appendChild(main);
+        var removeBtn = document.createElement('button');
+        removeBtn.type = 'button';
+        removeBtn.className = 'btn btn-danger';
+        removeBtn.textContent = '삭제';
+        removeBtn.addEventListener('click', function(){
+          options.onRemoveIndex(index);
+          openFileManagerModal(options.getFreshOptions());
+        });
+        item.appendChild(removeBtn);
+        list.appendChild(item);
+      });
+    }
+    els.body.appendChild(list);
+  }
+
+  function formatBytes(bytes){
+    if(!bytes) return '0 B';
+    var units = ['B','KB','MB','GB'];
+    var value = bytes;
+    var unitIndex = 0;
+    while(value >= 1024 && unitIndex < units.length - 1){
+      value /= 1024;
+      unitIndex += 1;
+    }
+    return (unitIndex === 0 ? value : value.toFixed(1)) + ' ' + units[unitIndex];
+  }
+
   window.KakaoCheckUI = {
+    closeModal: closeModal,
+    getModalState: getModalState,
     setAuthState: setAuthState,
     setLoginReady: setLoginReady,
     setTabState: setTabState,
     setAuthError: setAuthError,
     createPanelElement: createPanelElement,
-    fillSheetOptions: fillSheetOptions,
+    renderSelectedSheet: renderSelectedSheet,
     renderFileSummary: renderFileSummary,
     setPanelStatus: setPanelStatus,
     setPanelError: setPanelError,
-    renderResults: renderResults
+    renderResults: renderResults,
+    openSheetPickerModal: openSheetPickerModal,
+    openFileManagerModal: openFileManagerModal
   };
 })();

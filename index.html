@@ -10,9 +10,12 @@
 <body>
   <div class="app-shell">
     <header class="topbar">
-      <div>
-        <h1>클래스어라운드 카카오톡 입장자 체크봇</h1>
-        <p class="subtext">탭 검색 · 다중 로그 업로드 · 패널 추가 지원</p>
+      <div class="brand-wrap">
+        <img class="brand-logo" src="./assets/classaround-logo.png" alt="ClassAround" />
+        <div>
+          <h1>클래스어라운드 카카오톡 입장자 체크봇</h1>
+          <p class="subtext">탭 검색 · 다중 로그 업로드 · 패널 추가 지원</p>
+        </div>
       </div>
       <div class="topbar-actions">
         <button id="loginBtn" class="btn btn-primary" type="button">Google 로그인</button>
@@ -34,7 +37,7 @@
         <button id="addPanelBtn" class="btn btn-primary" type="button">패널 추가</button>
       </div>
       <p class="hint">
-        각 패널은 서로 다른 탭을 선택해서 독립적으로 체크할 수 있습니다. 여러 txt/csv 로그 파일도 한 번에 넣을 수 있습니다.
+        패널은 데스크톱에서 2열로 배치됩니다. 각 패널에서 탭 선택과 로그 파일 관리를 버튼으로 열고, 팝업에서 목록을 골라 바로 실행할 수 있습니다.
       </p>
     </section>
 
@@ -51,27 +54,25 @@
         <button class="btn btn-danger panel-remove-btn" type="button">패널 삭제</button>
       </div>
 
-      <div class="panel-grid">
-        <div class="field-block field-span-2">
-          <label>탭 검색</label>
-          <input class="input js-sheet-search" type="text" placeholder="탭 이름 검색" />
+      <div class="panel-summary-grid">
+        <div class="summary-box">
+          <span class="summary-label">선택된 탭</span>
+          <strong class="summary-value js-selected-sheet">탭 미선택</strong>
         </div>
-        <div class="field-block">
-          <label>탭 선택</label>
-          <select class="input js-sheet-select"></select>
-        </div>
-        <div class="field-block field-span-2">
-          <label>카톡 대화로그 업로드</label>
-          <input class="input js-file-input" type="file" accept=".txt,.csv" multiple />
-        </div>
-        <div class="field-block">
-          <label>업로드 상태</label>
-          <div class="file-summary js-file-summary">파일 없음</div>
+        <div class="summary-box">
+          <span class="summary-label">로그 파일</span>
+          <strong class="summary-value js-file-summary">파일 없음</strong>
         </div>
       </div>
 
+      <div class="panel-button-grid">
+        <button class="btn btn-wide js-open-sheet-modal-btn" type="button">탭 목록 열기</button>
+        <button class="btn btn-wide js-open-file-modal-btn" type="button">로그 파일 관리</button>
+      </div>
+
+      <input class="js-file-input sr-only" type="file" accept=".txt,.csv" multiple />
+
       <div class="panel-actions">
-        <button class="btn js-clear-files-btn" type="button">파일 비우기</button>
         <label class="check-row">
           <input class="js-preview-only" type="checkbox" />
           <span>열람용(시트 미기록)</span>
@@ -87,6 +88,19 @@
       <div class="panel-results js-panel-results"></div>
     </section>
   </template>
+
+  <div id="modalOverlay" class="modal-overlay hidden" aria-hidden="true">
+    <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+      <div class="modal-head">
+        <div>
+          <h3 id="modalTitle" class="modal-title"></h3>
+          <p id="modalSubtitle" class="modal-subtitle"></p>
+        </div>
+        <button id="modalCloseBtn" class="btn" type="button">닫기</button>
+      </div>
+      <div id="modalBody" class="modal-body"></div>
+    </div>
+  </div>
 
   <script src="./js/config.js"></script>
   <script src="./js/utils.js"></script>

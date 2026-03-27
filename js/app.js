@@ -52,6 +52,7 @@
 
     document.getElementById('logoutBtn').addEventListener('click', function(){
       auth.revoke();
+      ui.closeModal();
     });
 
     document.getElementById('refreshTabsBtn').addEventListener('click', function(){
@@ -68,9 +69,6 @@
       ui.setTabState('탭 목록 불러오는 중...', 'warn');
       state.sheetTitles = await sheets.listSheetTitles();
       ui.setTabState('탭 ' + state.sheetTitles.length + '개 로드 완료', 'ok');
-      state.panels.forEach(function(panelState){
-        updatePanelSheetOptions(panelState);
-      });
     } catch (error) {
       ui.setTabState('탭 목록 로드 실패', 'bad');
       ui.setAuthError(error.message);
@@ -86,12 +84,11 @@
       id: panelId,
       el: panelEl,
       files: [],
-      search: '',
       selectedSheet: ''
     };
     state.panels.set(panelId, panelState);
     bindPanelEvents(panelState);
-    updatePanelSheetOptions(panelState);
+    ui.renderSelectedSheet(panelEl, '');
     ui.renderFileSummary(panelEl, []);
     ui.setPanelStatus(panelEl, '대기 중', '');
     document.getElementById('panelsRoot').appendChild(panelEl);
@@ -104,6 +101,9 @@
     if(!panelState) return;
     panelState.el.remove();
     state.panels.delete(panelId);
+    if(ui.getModalState() && ui.getModalState().panelId === panelId){
+      ui.closeModal();
+    }
     refreshRemoveButtons();
   }
 
@@ -117,21 +117,19 @@
 
   function bindPanelEvents(panelState){
     var el = panelState.el;
-    var searchInput = utils.qs('.js-sheet-search', el);
-    var select = utils.qs('.js-sheet-select', el);
     var fileInput = utils.qs('.js-file-input', el);
     var runBtn = utils.qs('.js-run-btn', el);
     var demoBtn = utils.qs('.js-demo-btn', el);
     var removeBtn = utils.qs('.panel-remove-btn', el);
-    var clearFilesBtn = utils.qs('.js-clear-files-btn', el);
+    var openSheetBtn = utils.qs('.js-open-sheet-modal-btn', el);
+    var openFileBtn = utils.qs('.js-open-file-modal-btn', el);
 
-    searchInput.addEventListener('input', function(event){
-      panelState.search = String(event.target.value || '');
-      updatePanelSheetOptions(panelState);
+    openSheetBtn.addEventListener('click', function(){
+      openSheetPicker(panelState.id);
     });
 
-    select.addEventListener('change', function(event){
-      panelState.selectedSheet = String(event.target.value || '');
+    openFileBtn.addEventListener('click', function(){
+      openFileManager(panelState.id);
     });
 
     fileInput.addEventListener('change', function(event){
@@ -139,7 +137,12 @@
       if(!incoming.length) return;
       panelState.files = appendUniqueFiles(panelState.files, incoming);
       ui.renderFileSummary(el, panelState.files);
+      ui.setPanelStatus(el, panelState.files.length + '개 파일 준비', '');
       event.target.value = '';
+      var modal = ui.getModalState();
+      if(modal && modal.type === 'file-manager' && modal.panelId === panelState.id){
+        openFileManager(panelState.id);
+      }
     });
 
     runBtn.addEventListener('click', function(){
@@ -153,16 +156,56 @@
     removeBtn.addEventListener('click', function(){
       removePanel(panelState.id);
     });
-
-    if(clearFilesBtn){
-      clearFilesBtn.addEventListener('click', function(){
-        panelState.files = [];
-        ui.renderFileSummary(el, panelState.files);
-        ui.setPanelStatus(el, '파일 비움', '');
-      });
-    }
   }
 
+  function openSheetPicker(panelId){
+    var panelState = state.panels.get(panelId);
+    if(!panelState) return;
+    ui.openSheetPickerModal({
+      panelId: panelId,
+      title: '패널 ' + panelState.id + ' · 탭 선택',
+      subtitle: '현재 불러온 탭 목록에서 선택하세요.',
+      titles: state.sheetTitles,
+      selectedTitle: panelState.selectedSheet,
+      onSelect: function(title){
+        panelState.selectedSheet = title;
+        ui.renderSelectedSheet(panelState.el, panelState.selectedSheet);
+        ui.setPanelStatus(panelState.el, '탭 선택 완료', '');
+      }
+    });
+  }
+
+  function openFileManager(panelId){
+    var panelState = state.panels.get(panelId);
+    if(!panelState) return;
+    ui.openFileManagerModal(buildFileModalOptions(panelState));
+  }
+
+  function buildFileModalOptions(panelState){
+    return {
+      panelId: panelState.id,
+      title: '패널 ' + panelState.id + ' · 로그 파일 관리',
+      subtitle: 'txt/csv 파일을 여러 개 누적해서 추가할 수 있습니다.',
+      files: panelState.files,
+      onAddRequest: function(){
+        var input = utils.qs('.js-file-input', panelState.el);
+        if(input) input.click();
+      },
+      onRemoveIndex: function(index){
+        panelState.files.splice(index, 1);
+        ui.renderFileSummary(panelState.el, panelState.files);
+        ui.setPanelStatus(panelState.el, panelState.files.length ? '파일 목록 수정됨' : '파일 비움', '');
+      },
+      onClearAll: function(){
+        panelState.files = [];
+        ui.renderFileSummary(panelState.el, panelState.files);
+        ui.setPanelStatus(panelState.el, '파일 비움', '');
+      },
+      getFreshOptions: function(){
+        return buildFileModalOptions(panelState);
+      }
+    };
+  }
 
   function appendUniqueFiles(existingFiles, incomingFiles){
     var merged = existingFiles.slice();
@@ -178,17 +221,6 @@
     return merged;
   }
 
-  function updatePanelSheetOptions(panelState){
-    var query = panelState.search.trim().toLowerCase();
-    var filtered = state.sheetTitles.filter(function(title){
-      return !query || title.toLowerCase().indexOf(query) >= 0;
-    });
-    ui.fillSheetOptions(panelState.el, filtered, panelState.selectedSheet);
-    if(filtered.indexOf(panelState.selectedSheet) < 0){
-      panelState.selectedSheet = '';
-    }
-  }
-
   async function runPanel(panelId){
     var panelState = state.panels.get(panelId);
     var previewOnly = utils.qs('.js-preview-only', panelState.el).checked;
@@ -196,8 +228,8 @@
       ui.setPanelError(panelState.el, '');
       ui.setPanelStatus(panelState.el, '실행 중...', 'warn');
       if(!auth.getAccessToken()) throw new Error('먼저 Google 로그인하세요.');
-      if(!panelState.selectedSheet) throw new Error('탭을 선택하세요.');
-      if(!panelState.files.length) throw new Error('카톡 대화로그 파일을 하나 이상 업로드하세요.');
+      if(!panelState.selectedSheet) throw new Error('탭을 먼저 선택하세요.');
+      if(!panelState.files.length) throw new Error('카톡 대화로그 파일을 하나 이상 추가하세요.');
 
       var chatText = await parser.combineFiles(panelState.files);
       var parsed = parser.parseChatText(chatText);
@@ -260,18 +292,19 @@
         rows: result.leavers
       },
       {
-        title: previewOnly ? '예상 갱신 결과(열람용)' : '실제 갱신 결과',
-        headers: ['range'],
-        rows: result.updates.map(function(item){ return [item.range + ' ← 입장']; })
+        title: previewOnly ? '예상 기록 대상' : '실제 기록 대상',
+        headers: ['range', 'value'],
+        rows: result.updates.map(function(item){
+          return [item.range, item.values && item.values[0] ? item.values[0][0] : ''];
+        })
       },
       {
-        title: '미확인 목록',
-        headers: ['row', 'name', 'reason'],
-        rows: result.unresolved
+        title: '로그 요약',
+        headers: ['joinedCount', 'leftCount', 'matchedRows', 'updatedRows'],
+        rows: [[result.joinedCount, result.leftCount, result.attendingCount, result.updates.length]]
       }
     ];
     ui.renderResults(panelState.el, sections);
-    ui.setPanelError(panelState.el, 'join ' + result.joinedCount + ' · leave ' + result.leftCount + ' · 체크대상 ' + result.attendingCount + (previewOnly ? ' · 열람용' : ''));
   }
 
   document.addEventListener('DOMContentLoaded', bootstrap);
