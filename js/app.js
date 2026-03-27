@@ -85,7 +85,7 @@
     bindPanelEvents(panelState);
     ui.renderSelectedSheet(panelEl, '');
     ui.renderFileSummary(panelEl, []);
-    ui.setPanelStatus(panelEl, '대기 중', '');
+    ui.setPanelStatus(panelEl, '', '');
     document.getElementById('panelsRoot').appendChild(panelEl);
     refreshRemoveButtons();
   }
@@ -158,7 +158,7 @@
     if(!panelState) return;
     ui.openSheetPickerModal({
       panelId: panelId,
-      title: '패널 ' + panelState.id + ' · 탭 선택',
+      title: panelState.selectedSheet ? panelState.selectedSheet + ' · 탭 선택' : '탭 선택',
       subtitle: '',
       titles: state.sheetTitles,
       selectedTitle: panelState.selectedSheet,
@@ -179,7 +179,7 @@
   function buildFileModalOptions(panelState){
     return {
       panelId: panelState.id,
-      title: '패널 ' + panelState.id + ' · 로그 파일 관리',
+      title: panelState.selectedSheet ? panelState.selectedSheet + ' · 로그 파일 관리' : '로그 파일 관리',
       subtitle: '',
       files: panelState.files,
       onAddRequest: function(){

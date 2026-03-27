@@ -87,13 +87,16 @@
     var template = document.getElementById('panelTemplate');
     var node = template.content.firstElementChild.cloneNode(true);
     node.dataset.panelId = String(panelId);
-    utils.qs('.panel-title', node).textContent = '패널 ' + panelId;
+    utils.qs('.panel-title', node).textContent = '탭 선택 전';
     return node;
   }
 
   function renderSelectedSheet(panelEl, sheetTitle){
     var node = utils.qs('.js-selected-sheet', panelEl);
-    if(node) node.textContent = sheetTitle || '탭 미선택';
+    var titleNode = utils.qs('.panel-title', panelEl);
+    var label = sheetTitle || '탭 미선택';
+    if(node) node.textContent = label;
+    if(titleNode) titleNode.textContent = sheetTitle || '탭 선택 전';
   }
 
   function renderFileSummary(panelEl, files){
@@ -112,7 +115,15 @@
 
   function setPanelStatus(panelEl, message, kind){
     var status = utils.qs('.js-panel-status', panelEl);
-    if(!status) return;
+    var meta = utils.qs('.panel-meta', panelEl);
+    if(!status || !meta) return;
+    if(!message){
+      meta.classList.add('hidden');
+      status.className = 'status-pill js-panel-status';
+      status.textContent = '';
+      return;
+    }
+    meta.classList.remove('hidden');
     status.className = utils.statusClass(kind || '');
     status.textContent = message;
   }
