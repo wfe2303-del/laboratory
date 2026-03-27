@@ -13,7 +13,7 @@
   };
 
   function bootstrap(){
-    ui.renderSpreadsheetLink();
+    ui.setLoginReady(false);
     bindTopLevelEvents();
     auth.onChange(function(payload){
       ui.setAuthState(payload);
@@ -25,22 +25,28 @@
       }
     });
 
-    try {
-      auth.init();
-    } catch (error) {
+    auth.init().then(function(){
+      ui.setLoginReady(true);
+      ui.setAuthState({ accessToken: null, user: null });
+      ui.setAuthError('');
+    }).catch(function(error){
+      ui.setLoginReady(false);
       ui.setAuthError(error.message);
-    }
+    });
 
     addPanel();
   }
 
   function bindTopLevelEvents(){
-    document.getElementById('loginBtn').addEventListener('click', function(){
+    document.getElementById('loginBtn').addEventListener('click', async function(){
       try {
         ui.setAuthError('');
-        auth.login();
+        ui.setLoginReady(false);
+        await auth.login();
       } catch (error) {
         ui.setAuthError(error.message);
+      } finally {
+        ui.setLoginReady(true);
       }
     });
 

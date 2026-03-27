@@ -12,7 +12,7 @@
     <header class="topbar">
       <div>
         <h1>클래스어라운드 카카오톡 입장자 체크봇</h1>
-        <p class="subtext">고정 스프레드시트 기준 · 탭 검색 · 다중 로그 업로드 · 패널 추가 지원</p>
+        <p class="subtext">탭 검색 · 다중 로그 업로드 · 패널 추가 지원</p>
       </div>
       <div class="topbar-actions">
         <button id="loginBtn" class="btn btn-primary" type="button">Google 로그인</button>
@@ -20,23 +20,9 @@
       </div>
     </header>
 
-    <section class="card info-card">
-      <div class="info-grid">
-        <div>
-          <div class="label">고정 스프레드시트</div>
-          <div class="mono small" id="spreadsheetLinkWrap"></div>
-        </div>
-        <div>
-          <div class="label">열 기준</div>
-          <div class="small">이름 C열 · 전화번호 D열 · 체크 M열</div>
-        </div>
-        <div>
-          <div class="label">허용 로그인</div>
-          <div class="small">classaround.co.kr / titanz.co.kr</div>
-        </div>
-      </div>
+    <section class="card info-card compact-info-card">
       <div class="status-row">
-        <span id="authState" class="status-pill warn">로그인이 필요합니다.</span>
+        <span id="authState" class="status-pill warn">로그인 준비 중...</span>
         <span id="tabState" class="status-pill">탭 목록 미로드</span>
       </div>
       <div id="authErr" class="error-box"></div>

@@ -129,3 +129,6 @@ th{position:sticky;top:0;background:#f8fafc;font-size:12px}
   .field-span-2{grid-column:auto}
   .panel-head{align-items:flex-start}
 }
+
+
+.compact-info-card{padding-top:20px;padding-bottom:20px;}

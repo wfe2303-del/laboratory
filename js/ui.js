@@ -1,6 +1,5 @@
 (function(){
   var utils = window.KakaoCheckUtils;
-  var config = window.KakaoCheckConfig;
 
   function setAuthState(state){
     var authState = document.getElementById('authState');
@@ -14,6 +13,13 @@
     }
   }
 
+  function setLoginReady(isReady){
+    var loginBtn = document.getElementById('loginBtn');
+    if(!loginBtn) return;
+    loginBtn.disabled = !isReady;
+    loginBtn.textContent = isReady ? 'Google 로그인' : '로그인 준비 중...';
+  }
+
   function setTabState(message, kind){
     var tabState = document.getElementById('tabState');
     if(!tabState) return;
@@ -24,13 +30,6 @@
   function setAuthError(message){
     var authErr = document.getElementById('authErr');
     if(authErr) authErr.textContent = message || '';
-  }
-
-  function renderSpreadsheetLink(){
-    var el = document.getElementById('spreadsheetLinkWrap');
-    if(!el) return;
-    el.innerHTML = '<a class="inline-link" href="' + utils.escapeHtml(config.spreadsheetUrl) + '" target="_blank" rel="noreferrer">' +
-      utils.escapeHtml(config.spreadsheetUrl) + '</a>';
   }
 
   function createPanelElement(panelId){
@@ -136,9 +135,9 @@
 
   window.KakaoCheckUI = {
     setAuthState: setAuthState,
+    setLoginReady: setLoginReady,
     setTabState: setTabState,
     setAuthError: setAuthError,
-    renderSpreadsheetLink: renderSpreadsheetLink,
     createPanelElement: createPanelElement,
     fillSheetOptions: fillSheetOptions,
     renderFileSummary: renderFileSummary,

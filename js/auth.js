@@ -4,6 +4,8 @@
   var tokenClient = null;
   var currentUser = null;
   var listeners = [];
+  var initPromise = null;
+  var initialized = false;
 
   function notify(){
     listeners.forEach(function(listener){
@@ -19,19 +21,41 @@
     listeners.push(listener);
   }
 
-  function init(){
-    if(!window.google || !google.accounts || !google.accounts.oauth2){
-      throw new Error('Google Identity Services 로드에 실패했습니다.');
-    }
-    tokenClient = google.accounts.oauth2.initTokenClient({
-      client_id: config.clientId,
-      scope: config.scopes,
-      prompt: '',
-      callback: handleTokenResponse,
-      error_callback: function(err){
-        throw new Error('OAuth 오류: ' + (err && (err.error || err.type || JSON.stringify(err))));
+  function waitForGoogleIdentity(timeoutMs, intervalMs){
+    return new Promise(function(resolve, reject){
+      var startedAt = Date.now();
+      function check(){
+        if(window.google && google.accounts && google.accounts.oauth2){
+          resolve();
+          return;
+        }
+        if(Date.now() - startedAt >= timeoutMs){
+          reject(new Error('Google 로그인 스크립트를 불러오지 못했습니다. 새로고침 후 다시 시도하세요.'));
+          return;
+        }
+        setTimeout(check, intervalMs);
       }
+      check();
     });
+  }
+
+  function init(){
+    if(initPromise) return initPromise;
+    initPromise = waitForGoogleIdentity(15000, 100).then(function(){
+      tokenClient = google.accounts.oauth2.initTokenClient({
+        client_id: config.clientId,
+        scope: config.scopes,
+        prompt: '',
+        callback: handleTokenResponse,
+        error_callback: function(err){
+          console.error(err);
+          alert('OAuth 오류: ' + (err && (err.error || err.type || JSON.stringify(err))));
+        }
+      });
+      initialized = true;
+      return true;
+    });
+    return initPromise;
   }
 
   async function handleTokenResponse(response){
@@ -66,8 +90,9 @@
     throw new Error('허용되지 않은 계정입니다. classaround.co.kr 또는 titanz.co.kr 계정으로 로그인하세요.');
   }
 
-  function login(){
-    if(!tokenClient) throw new Error('OAuth 초기화가 아직 끝나지 않았습니다.');
+  async function login(){
+    await init();
+    if(!tokenClient) throw new Error('로그인 준비가 아직 끝나지 않았습니다.');
     tokenClient.requestAccessToken({ prompt: 'consent' });
   }
 
@@ -87,6 +112,7 @@
 
   function getAccessToken(){ return accessToken; }
   function getCurrentUser(){ return currentUser; }
+  function isInitialized(){ return initialized; }
 
   window.KakaoCheckAuth = {
     init: init,
@@ -95,6 +121,7 @@
     onChange: onChange,
     requireToken: requireToken,
     getAccessToken: getAccessToken,
-    getCurrentUser: getCurrentUser
+    getCurrentUser: getCurrentUser,
+    isInitialized: isInitialized
   };
 })();
