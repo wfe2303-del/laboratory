@@ -87,7 +87,6 @@
     var template = document.getElementById('panelTemplate');
     var node = template.content.firstElementChild.cloneNode(true);
     node.dataset.panelId = String(panelId);
-    node.classList.add('is-empty');
     utils.qs('.panel-title', node).textContent = '탭 선택 전';
     return node;
   }
@@ -98,7 +97,6 @@
     var label = sheetTitle || '탭 미선택';
     if(node) node.textContent = label;
     if(titleNode) titleNode.textContent = sheetTitle || '탭 선택 전';
-    if(panelEl) panelEl.classList.toggle('is-empty', !sheetTitle);
   }
 
   function renderFileSummary(panelEl, files){
