@@ -20,8 +20,6 @@
       ui.setAuthError('');
       if(payload && payload.accessToken){
         loadSheetTitles();
-      } else {
-        ui.setTabState('탭 목록 미로드', '');
       }
     });
 
@@ -66,11 +64,8 @@
 
   async function loadSheetTitles(){
     try {
-      ui.setTabState('탭 목록 불러오는 중...', 'warn');
       state.sheetTitles = await sheets.listSheetTitles();
-      ui.setTabState('탭 ' + state.sheetTitles.length + '개 로드 완료', 'ok');
     } catch (error) {
-      ui.setTabState('탭 목록 로드 실패', 'bad');
       ui.setAuthError(error.message);
     }
   }

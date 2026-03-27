@@ -10,6 +10,8 @@
       status: 'M'
     }),
     statusText: '입장',
+    googleLoginHint: '',
+    googleHostedDomainHint: '',
     allowedEmailDomains: Object.freeze(['classaround.co.kr', 'titanz.co.kr']),
     allowedEmails: Object.freeze([]),
     scopes: [

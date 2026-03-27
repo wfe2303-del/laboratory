@@ -46,6 +46,8 @@
         client_id: config.clientId,
         scope: config.scopes,
         prompt: '',
+        login_hint: config.googleLoginHint || undefined,
+        hd: config.googleHostedDomainHint || undefined,
         callback: handleTokenResponse,
         error_callback: function(err){
           console.error(err);
@@ -93,7 +95,7 @@
   async function login(){
     await init();
     if(!tokenClient) throw new Error('로그인 준비가 아직 끝나지 않았습니다.');
-    tokenClient.requestAccessToken({ prompt: 'consent' });
+    tokenClient.requestAccessToken({ prompt: 'consent', login_hint: config.googleLoginHint || undefined });
   }
 
   function revoke(){
