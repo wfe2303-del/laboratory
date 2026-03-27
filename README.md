@@ -50,3 +50,9 @@
 ## 주의
 - `file://` 로 직접 열면 OAuth origin 문제로 막힐 수 있습니다.
 - 간단한 로컬 테스트라도 `Live Server`, `http-server`, Vercel 등 **http/https 주소** 에서 여는 편이 안전합니다.
+
+
+## v3 수정
+- Google Sheets batchUpdate payload 오류(rowNumber 제거) 수정
+- 파일 업로드를 누적 추가 방식으로 변경
+- 파일 비우기 버튼 추가

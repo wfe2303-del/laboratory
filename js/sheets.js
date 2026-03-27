@@ -59,11 +59,17 @@
   async function writeUpdates(updates){
     if(!updates.length) return { totalUpdatedCells: 0 };
     var url = 'https://sheets.googleapis.com/v4/spreadsheets/' + encodeURIComponent(config.spreadsheetId) + '/values:batchUpdate';
+    var valueRanges = updates.map(function(item){
+      return {
+        range: item.range,
+        values: item.values
+      };
+    });
     return apiFetch(url, {
       method: 'POST',
       body: JSON.stringify({
         valueInputOption: 'USER_ENTERED',
-        data: updates
+        data: valueRanges
       })
     });
   }

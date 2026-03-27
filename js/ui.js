@@ -68,7 +68,12 @@
       summary.textContent = files[0].name;
       return;
     }
-    summary.textContent = files.length + '개 파일 선택됨 · ' + files[0].name + ' 외 ' + (files.length - 1) + '개';
+    var names = files.slice(0, 3).map(function(file){ return file.name; }).join(', ');
+    if(files.length <= 3){
+      summary.textContent = files.length + '개 파일 선택됨 · ' + names;
+      return;
+    }
+    summary.textContent = files.length + '개 파일 선택됨 · ' + names + ' 외 ' + (files.length - 3) + '개';
   }
 
   function setPanelStatus(panelEl, message, kind){

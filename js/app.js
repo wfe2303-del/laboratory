@@ -123,6 +123,7 @@
     var runBtn = utils.qs('.js-run-btn', el);
     var demoBtn = utils.qs('.js-demo-btn', el);
     var removeBtn = utils.qs('.panel-remove-btn', el);
+    var clearFilesBtn = utils.qs('.js-clear-files-btn', el);
 
     searchInput.addEventListener('input', function(event){
       panelState.search = String(event.target.value || '');
@@ -134,8 +135,11 @@
     });
 
     fileInput.addEventListener('change', function(event){
-      panelState.files = Array.from(event.target.files || []);
+      var incoming = Array.from(event.target.files || []);
+      if(!incoming.length) return;
+      panelState.files = appendUniqueFiles(panelState.files, incoming);
       ui.renderFileSummary(el, panelState.files);
+      event.target.value = '';
     });
 
     runBtn.addEventListener('click', function(){
@@ -149,6 +153,29 @@
     removeBtn.addEventListener('click', function(){
       removePanel(panelState.id);
     });
+
+    if(clearFilesBtn){
+      clearFilesBtn.addEventListener('click', function(){
+        panelState.files = [];
+        ui.renderFileSummary(el, panelState.files);
+        ui.setPanelStatus(el, '파일 비움', '');
+      });
+    }
+  }
+
+
+  function appendUniqueFiles(existingFiles, incomingFiles){
+    var merged = existingFiles.slice();
+    var seen = new Set(existingFiles.map(function(file){
+      return [file.name, file.size, file.lastModified].join('::');
+    }));
+    incomingFiles.forEach(function(file){
+      var key = [file.name, file.size, file.lastModified].join('::');
+      if(seen.has(key)) return;
+      seen.add(key);
+      merged.push(file);
+    });
+    return merged;
   }
 
   function updatePanelSheetOptions(panelState){
