@@ -25,14 +25,19 @@
       var nameKey = row.nameNormalized;
       var phone4 = utils.last4Digits(row.phone);
       var activeSet = activeDigitsByName.get(nameKey) || new Set();
+      var leftSet = leftFinalDigitsByName.get(nameKey) || new Set();
       var isDup = (nameCount.get(nameKey) || 0) > 1;
-      var hasNameOnly = activeSet.has(sentinel);
-      var hasExactPhone = phone4 ? activeSet.has(phone4) : false;
-      var hasAnyJoin = activeSet.size > 0;
-      var confidentAttendance = false;
+      var hasNameOnlyActive = activeSet.has(sentinel);
+      var hasNameOnlyLeft = leftSet.has(sentinel);
+      var hasExactActive = phone4 ? activeSet.has(phone4) : false;
+      var hasExactLeft = phone4 ? leftSet.has(phone4) : false;
+      var hasAnyActive = activeSet.size > 0;
+      var hasAnyLeft = leftSet.size > 0;
       var status = '미입장';
       var notes = '';
       var matched = '';
+      var confidentActive = false;
+      var confidentLeft = false;
 
       if(!nameKey){
         report.push([row.rowNumber, row.name, row.phone, status, matched, notes]);
@@ -40,34 +45,58 @@
       }
 
       if(isDup){
-        if(hasExactPhone){
-          confidentAttendance = true;
+        if(hasExactActive){
+          confidentActive = true;
           matched = row.name + '/' + phone4;
-        } else if(hasNameOnly && hasAnyJoin){
+        } else if(hasExactLeft){
+          confidentLeft = true;
+          matched = row.name + '/' + phone4;
+          notes = '최종 퇴장';
+        } else if(hasNameOnlyActive && hasAnyActive){
           unresolved.push([row.rowNumber, row.name, '동명이인 + 입장로그 번호없음']);
           notes = '동명이인 / 번호없음';
-        } else if(hasAnyJoin){
+        } else if(hasAnyActive){
           unresolved.push([row.rowNumber, row.name, '동명이인 + 번호불일치']);
           notes = '동명이인 / 번호불일치';
+        } else if(hasNameOnlyLeft && hasAnyLeft){
+          unresolved.push([row.rowNumber, row.name, '동명이인 + 퇴장로그 번호없음']);
+          notes = '동명이인 / 퇴장 번호없음';
+        } else if(hasAnyLeft){
+          unresolved.push([row.rowNumber, row.name, '동명이인 + 퇴장 번호불일치']);
+          notes = '동명이인 / 퇴장 번호불일치';
         }
       } else {
-        if(hasExactPhone){
-          confidentAttendance = true;
+        if(hasExactActive){
+          confidentActive = true;
           matched = row.name + '/' + phone4;
-        } else if(hasAnyJoin){
-          confidentAttendance = true;
-          matched = hasNameOnly ? row.name : row.name + '/' + firstNonSentinel(activeSet, sentinel);
-          if(hasNameOnly) notes = '번호없음';
+        } else if(hasAnyActive){
+          confidentActive = true;
+          matched = hasNameOnlyActive ? row.name : row.name + '/' + firstNonSentinel(activeSet, sentinel);
+          if(hasNameOnlyActive) notes = '번호없음';
+        } else if(hasExactLeft){
+          confidentLeft = true;
+          matched = row.name + '/' + phone4;
+          notes = '최종 퇴장';
+        } else if(hasAnyLeft){
+          confidentLeft = true;
+          matched = hasNameOnlyLeft ? row.name : row.name + '/' + firstNonSentinel(leftSet, sentinel);
+          notes = hasNameOnlyLeft ? '번호없음 / 최종 퇴장' : '최종 퇴장';
         }
       }
 
-      if(confidentAttendance){
+      if(confidentActive){
         status = '입장';
         updates.push({ rowNumber: row.rowNumber, range: row.sheetTitle + '!' + config.columns.status + row.rowNumber, values: [[config.statusText]] });
+      } else if(confidentLeft){
+        status = '퇴장';
       }
 
       report.push([row.rowNumber, row.name, row.phone, status, matched, notes]);
     });
+
+    var enteredRows = report.filter(function(row){ return row[3] === '입장'; });
+    var leftRows = report.filter(function(row){ return row[3] === '퇴장'; });
+    var missingRows = report.filter(function(row){ return row[3] === '미입장'; });
 
     var extra = [];
     activeDigitsByName.forEach(function(set, nameKey){
@@ -93,13 +122,18 @@
 
     return {
       report: report,
+      reportEntered: enteredRows,
+      reportLeft: leftRows,
+      reportMissing: missingRows,
       extra: extra,
       leavers: leavers,
       unresolved: unresolved,
       updates: updates,
       joinedCount: parsed.joinedCount,
       leftCount: parsed.leftCount,
-      attendingCount: updates.length
+      attendingCount: enteredRows.length,
+      finalLeftCount: leftRows.length,
+      missingCount: missingRows.length
     };
   }
 

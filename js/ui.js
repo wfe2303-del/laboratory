@@ -49,14 +49,18 @@
   }
 
   function setAuthState(state){
-    var authState = document.getElementById('authState');
-    if(!authState) return;
-    if(state && state.user && state.user.email){
-      authState.className = utils.statusClass('ok');
-      authState.textContent = '로그인됨 · ' + state.user.email;
-    } else {
-      authState.className = utils.statusClass('warn');
-      authState.textContent = '로그인이 필요합니다.';
+    var loginScreen = document.getElementById('loginScreen');
+    var appShell = document.getElementById('appShell');
+    var logoutBtn = document.getElementById('logoutBtn');
+    var topbarUser = document.getElementById('topbarUser');
+    var isLoggedIn = !!(state && state.user && state.user.email && state.accessToken);
+
+    if(loginScreen) loginScreen.classList.toggle('hidden', isLoggedIn);
+    if(appShell) appShell.classList.toggle('hidden', !isLoggedIn);
+    if(logoutBtn) logoutBtn.classList.toggle('hidden', !isLoggedIn);
+    if(topbarUser){
+      topbarUser.textContent = isLoggedIn ? state.user.email : '';
+      topbarUser.classList.toggle('hidden', !isLoggedIn);
     }
   }
 
@@ -64,14 +68,14 @@
     var loginBtn = document.getElementById('loginBtn');
     if(!loginBtn) return;
     loginBtn.disabled = !isReady;
-    loginBtn.textContent = isReady ? 'Google 로그인' : '로그인 준비 중...';
+    loginBtn.textContent = isReady ? 'Google 계정으로 로그인' : '로그인 준비 중...';
   }
 
   function setTabState(message, kind){
     var tabState = document.getElementById('tabState');
     if(!tabState) return;
     tabState.className = utils.statusClass(kind || '');
-    tabState.textContent = message;
+    tabState.textContent = message || '';
   }
 
   function setAuthError(message){
@@ -187,6 +191,12 @@
     openModal(section.title, (section.rows && section.rows.length ? section.rows.length + '건' : '데이터 없음'));
     modalState = { type: 'result-section', title: section.title };
     var els = modalEls();
+
+    if(section.groups && section.groups.length){
+      renderGroupedSectionModal(els.body, section);
+      return;
+    }
+
     if(!section.rows || !section.rows.length){
       var empty = document.createElement('div');
       empty.className = 'empty-state';
@@ -194,12 +204,55 @@
       els.body.appendChild(empty);
       return;
     }
+
+    els.body.appendChild(buildTableWrap(section.headers || [], section.rows || []));
+  }
+
+  function renderGroupedSectionModal(root, section){
+    var groups = section.groups || [];
+    var activeKey = groups[0] ? groups[0].key : '';
+    var filterRow = document.createElement('div');
+    filterRow.className = 'result-filter-row';
+    var content = document.createElement('div');
+
+    function draw(){
+      filterRow.innerHTML = '';
+      content.innerHTML = '';
+      groups.forEach(function(group){
+        var btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'result-filter-btn' + (group.key === activeKey ? ' active' : '');
+        btn.textContent = group.label + ' ' + (group.rows ? group.rows.length : 0);
+        btn.addEventListener('click', function(){
+          activeKey = group.key;
+          draw();
+        });
+        filterRow.appendChild(btn);
+      });
+
+      var current = groups.find(function(group){ return group.key === activeKey; }) || groups[0];
+      if(!current || !current.rows || !current.rows.length){
+        var empty = document.createElement('div');
+        empty.className = 'empty-state';
+        empty.textContent = '데이터 없음';
+        content.appendChild(empty);
+        return;
+      }
+      content.appendChild(buildTableWrap(section.headers || [], current.rows || []));
+    }
+
+    root.appendChild(filterRow);
+    root.appendChild(content);
+    draw();
+  }
+
+  function buildTableWrap(headers, rows){
     var wrap = document.createElement('div');
     wrap.className = 'table-wrap';
     var table = document.createElement('table');
     var thead = document.createElement('thead');
     var headerRow = document.createElement('tr');
-    (section.headers || []).forEach(function(header){
+    (headers || []).forEach(function(header){
       var th = document.createElement('th');
       th.textContent = header;
       headerRow.appendChild(th);
@@ -207,7 +260,7 @@
     thead.appendChild(headerRow);
     table.appendChild(thead);
     var tbody = document.createElement('tbody');
-    (section.rows || []).forEach(function(row){
+    (rows || []).forEach(function(row){
       var tr = document.createElement('tr');
       row.forEach(function(cell){
         var td = document.createElement('td');
@@ -218,11 +271,11 @@
     });
     table.appendChild(tbody);
     wrap.appendChild(table);
-    els.body.appendChild(wrap);
+    return wrap;
   }
 
   function openSheetPickerModal(options){
-    openModal(options.title || '탭 선택', options.subtitle || '탭을 골라주세요.');
+    openModal(options.title || '탭 선택', options.subtitle || '');
     modalState = { type: 'sheet-picker', panelId: options.panelId };
     var els = modalEls();
     var search = document.createElement('input');
@@ -263,22 +316,20 @@
     els.body.appendChild(search);
     els.body.appendChild(list);
     renderList();
-    search.focus();
   }
 
   function openFileManagerModal(options){
-    openModal(options.title || '로그 파일 관리', options.subtitle || 'txt/csv 로그 파일을 추가하거나 정리하세요.');
+    openModal(options.title || '로그 파일 관리', options.subtitle || '');
     modalState = { type: 'file-manager', panelId: options.panelId };
     var els = modalEls();
     var actions = document.createElement('div');
     actions.className = 'file-manager-actions';
+
     var addBtn = document.createElement('button');
     addBtn.type = 'button';
     addBtn.className = 'btn btn-primary';
     addBtn.textContent = '파일 추가';
-    addBtn.addEventListener('click', function(){
-      options.onAddRequest();
-    });
+    addBtn.addEventListener('click', function(){ options.onAddRequest(); });
     actions.appendChild(addBtn);
 
     var clearBtn = document.createElement('button');
@@ -290,14 +341,15 @@
       openFileManagerModal(options.getFreshOptions());
     });
     actions.appendChild(clearBtn);
-    els.body.appendChild(actions);
 
+    els.body.appendChild(actions);
     var list = document.createElement('div');
     list.className = 'modal-list';
-    if(!options.files.length){
+
+    if(!options.files || !options.files.length){
       var empty = document.createElement('div');
       empty.className = 'file-empty';
-      empty.textContent = '추가된 파일이 없습니다.';
+      empty.textContent = '추가된 로그 파일이 없습니다.';
       list.appendChild(empty);
     } else {
       options.files.forEach(function(file, index){
@@ -305,13 +357,13 @@
         item.className = 'file-item';
         var main = document.createElement('div');
         main.className = 'file-item-main';
-        var name = document.createElement('div');
-        name.className = 'file-name';
-        name.textContent = file.name;
+        var fileName = document.createElement('div');
+        fileName.className = 'file-name';
+        fileName.textContent = file.name;
         var meta = document.createElement('div');
         meta.className = 'file-meta';
-        meta.textContent = [formatBytes(file.size), file.lastModified ? new Date(file.lastModified).toLocaleString('ko-KR') : ''].filter(Boolean).join(' · ');
-        main.appendChild(name);
+        meta.textContent = formatBytes(file.size) + ' · ' + new Date(file.lastModified || Date.now()).toLocaleString();
+        main.appendChild(fileName);
         main.appendChild(meta);
         item.appendChild(main);
         var removeBtn = document.createElement('button');

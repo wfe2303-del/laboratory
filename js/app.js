@@ -261,7 +261,8 @@
       '진종범/2514님이 입장하셨습니다',
       '매드드라이버김지현님이 입장하셨습니다',
       '황현하/5678님이 나갔습니다',
-      '황현하/5678님이 입장했습니다'
+      '황현하/5678님이 입장했습니다',
+      '김혜영님이 나갔습니다'
     ].join('\n'));
     var result = matcher.buildResult(roster, parsed);
     ui.setPanelError(panelState.el, '');
@@ -274,7 +275,13 @@
       {
         title: '명단 기준 상태',
         headers: ['row', 'name', 'phone', 'status', 'matched', 'notes'],
-        rows: result.report
+        rows: result.report,
+        groups: [
+          { key: 'all', label: '전체', rows: result.report },
+          { key: 'entered', label: '입장자', rows: result.reportEntered },
+          { key: 'left', label: '퇴장자', rows: result.reportLeft },
+          { key: 'missing', label: '미입장', rows: result.reportMissing }
+        ]
       },
       {
         title: '명단 외 입장자',
@@ -295,8 +302,8 @@
       },
       {
         title: '로그 요약',
-        headers: ['joinedCount', 'leftCount', 'matchedRows', 'updatedRows'],
-        rows: [[result.joinedCount, result.leftCount, result.attendingCount, result.updates.length]]
+        headers: ['입장 로그 수', '퇴장 로그 수', '명단 입장자', '명단 퇴장자'],
+        rows: [[result.joinedCount, result.leftCount, result.attendingCount, result.finalLeftCount]]
       }
     ];
     ui.renderResults(panelState.el, sections);
