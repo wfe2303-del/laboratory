@@ -6,11 +6,13 @@
   var listeners = [];
   var initPromise = null;
   var initialized = false;
+  var tokenExpiryTimer = null;
+  var tokenExpiresAt = null;
 
   function notify(){
     listeners.forEach(function(listener){
       try {
-        listener({ accessToken: accessToken, user: currentUser });
+        listener({ accessToken: accessToken, user: currentUser, tokenExpiresAt: tokenExpiresAt });
       } catch (error) {
         console.error(error);
       }
@@ -39,9 +41,41 @@
     });
   }
 
+  function clearTokenExpiryTimer(){
+    if(tokenExpiryTimer){
+      clearTimeout(tokenExpiryTimer);
+      tokenExpiryTimer = null;
+    }
+  }
+
+  function scheduleTokenExpiry(expiresInSeconds){
+    clearTokenExpiryTimer();
+    tokenExpiresAt = expiresInSeconds ? Date.now() + (Number(expiresInSeconds) * 1000) : null;
+    if(!tokenExpiresAt) return;
+    var delay = Math.max((tokenExpiresAt - Date.now()) - 5000, 0);
+    tokenExpiryTimer = setTimeout(function(){
+      revoke(false);
+      alert('로그인 세션이 만료되어 자동 로그아웃되었습니다. 다시 로그인해주세요.');
+    }, delay);
+  }
+
+  function assertOriginAllowed(){
+    var currentOrigin = String(window.location.origin || '').replace(/\/$/, '');
+    if(config.allowedOrigins.indexOf(currentOrigin) >= 0) return;
+    throw new Error('허용되지 않은 배포 주소입니다: ' + currentOrigin);
+  }
+
   function init(){
     if(initPromise) return initPromise;
-    initPromise = waitForGoogleIdentity(15000, 100).then(function(){
+    initPromise = Promise.resolve()
+      .then(function(){
+        return config.assertRuntimeReady();
+      })
+      .then(function(){
+        assertOriginAllowed();
+        return waitForGoogleIdentity(15000, 100);
+      })
+      .then(function(){
       tokenClient = google.accounts.oauth2.initTokenClient({
         client_id: config.clientId,
         scope: config.scopes,
@@ -63,12 +97,15 @@
   async function handleTokenResponse(response){
     try {
       accessToken = response && response.access_token ? response.access_token : null;
+      scheduleTokenExpiry(response && response.expires_in);
       currentUser = accessToken ? await fetchUserInfo() : null;
       validateUser(currentUser);
       notify();
     } catch (error) {
       accessToken = null;
       currentUser = null;
+      tokenExpiresAt = null;
+      clearTokenExpiryTimer();
       notify();
       alert(error.message);
     }
@@ -76,6 +113,10 @@
 
   async function fetchUserInfo(){
     var res = await fetch('https://www.googleapis.com/oauth2/v2/userinfo', {
+      method: 'GET',
+      cache: 'no-store',
+      credentials: 'omit',
+      referrerPolicy: 'no-referrer',
       headers: { Authorization: 'Bearer ' + accessToken }
     });
     if(!res.ok) throw new Error('로그인 사용자 정보를 불러오지 못했습니다.');
@@ -85,11 +126,10 @@
   function validateUser(user){
     var email = String(user && user.email || '').toLowerCase();
     var domain = email.split('@')[1] || '';
-    var allowedEmails = config.allowedEmails.map(function(item){ return item.toLowerCase(); });
-    if(allowedEmails.length && allowedEmails.indexOf(email) >= 0) return;
+    if(config.allowedEmails.length && config.allowedEmails.indexOf(email) >= 0) return;
     if(config.allowedEmailDomains.indexOf(domain) >= 0) return;
     revoke();
-    throw new Error('허용되지 않은 계정입니다. classaround.co.kr 또는 titanz.co.kr 계정으로 로그인하세요.');
+    throw new Error('허용되지 않은 계정입니다. 허용된 회사 계정으로 로그인하세요.');
   }
 
   async function login(){
@@ -98,13 +138,23 @@
     tokenClient.requestAccessToken({ prompt: 'consent', login_hint: config.googleLoginHint || undefined });
   }
 
-  function revoke(){
+  function revoke(notifyListeners){
+    if(notifyListeners === undefined) notifyListeners = true;
     if(accessToken && window.google && google.accounts && google.accounts.oauth2){
       google.accounts.oauth2.revoke(accessToken, function(){});
     }
     accessToken = null;
     currentUser = null;
-    notify();
+    tokenExpiresAt = null;
+    clearTokenExpiryTimer();
+    if(notifyListeners) notify();
+  }
+
+  function softLogoutOnPageHide(){
+    accessToken = null;
+    currentUser = null;
+    tokenExpiresAt = null;
+    clearTokenExpiryTimer();
   }
 
   function requireToken(){
@@ -115,6 +165,8 @@
   function getAccessToken(){ return accessToken; }
   function getCurrentUser(){ return currentUser; }
   function isInitialized(){ return initialized; }
+
+  window.addEventListener('pagehide', softLogoutOnPageHide);
 
   window.KakaoCheckAuth = {
     init: init,

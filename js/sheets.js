@@ -10,7 +10,12 @@
       Authorization: 'Bearer ' + token,
       'Content-Type': 'application/json'
     });
-    var response = await fetch(url, Object.assign({}, options, { headers: headers }));
+    var response = await fetch(url, Object.assign({}, options, {
+      headers: headers,
+      cache: 'no-store',
+      credentials: 'omit',
+      referrerPolicy: 'no-referrer'
+    }));
     if(!response.ok) throw new Error(await response.text());
     if(response.status === 204) return null;
     return response.json();

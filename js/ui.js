@@ -258,6 +258,12 @@
   }
 
   function buildTableWrap(headers, rows){
+    var section = document.createElement('div');
+    section.className = 'table-section';
+
+    var copyBar = buildCopyToolbar(headers || [], rows || []);
+    if(copyBar) section.appendChild(copyBar);
+
     var wrap = document.createElement('div');
     wrap.className = 'table-wrap';
     var table = document.createElement('table');
@@ -282,7 +288,112 @@
     });
     table.appendChild(tbody);
     wrap.appendChild(table);
-    return wrap;
+    section.appendChild(wrap);
+    return section;
+  }
+
+  function buildCopyToolbar(headers, rows){
+    if(!headers.length || !rows.length) return null;
+
+    var bar = document.createElement('div');
+    bar.className = 'copy-toolbar';
+
+    var group = document.createElement('div');
+    group.className = 'copy-button-group';
+
+    headers.forEach(function(header, index){
+      var btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'copy-chip-btn';
+      btn.textContent = header + ' 복사';
+      btn.addEventListener('click', function(){
+        copyColumnValues(header, index, rows, status);
+      });
+      group.appendChild(btn);
+    });
+
+    var allBtn = document.createElement('button');
+    allBtn.type = 'button';
+    allBtn.className = 'copy-chip-btn copy-chip-btn-all';
+    allBtn.textContent = '표 전체 복사';
+    allBtn.addEventListener('click', function(){
+      copyFullTable(headers, rows, status);
+    });
+    group.appendChild(allBtn);
+
+    var status = document.createElement('span');
+    status.className = 'copy-status';
+    status.textContent = '열 단위 복사 가능';
+
+    bar.appendChild(group);
+    bar.appendChild(status);
+    return bar;
+  }
+
+  function copyColumnValues(header, index, rows, statusNode){
+    var values = (rows || []).map(function(row){
+      return row && row[index] != null ? String(row[index]).trim() : '';
+    }).filter(function(value){
+      return value !== '';
+    });
+
+    if(!values.length){
+      setCopyStatus(statusNode, header + ' 열에 복사할 값이 없습니다.', true);
+      return;
+    }
+
+    copyText(values.join('\n')).then(function(){
+      setCopyStatus(statusNode, header + ' 열 ' + values.length + '건 복사됨');
+    }).catch(function(){
+      setCopyStatus(statusNode, header + ' 열 복사 실패', true);
+    });
+  }
+
+  function copyFullTable(headers, rows, statusNode){
+    var lines = [headers.join('\t')];
+    (rows || []).forEach(function(row){
+      lines.push((row || []).map(function(cell){
+        return cell == null ? '' : String(cell);
+      }).join('\t'));
+    });
+
+    copyText(lines.join('\n')).then(function(){
+      setCopyStatus(statusNode, '표 전체 ' + rows.length + '건 복사됨');
+    }).catch(function(){
+      setCopyStatus(statusNode, '표 전체 복사 실패', true);
+    });
+  }
+
+  function copyText(text){
+    if(navigator.clipboard && window.isSecureContext){
+      return navigator.clipboard.writeText(text);
+    }
+
+    return new Promise(function(resolve, reject){
+      try {
+        var textarea = document.createElement('textarea');
+        textarea.value = text;
+        textarea.setAttribute('readonly', 'readonly');
+        textarea.style.position = 'fixed';
+        textarea.style.opacity = '0';
+        textarea.style.pointerEvents = 'none';
+        document.body.appendChild(textarea);
+        textarea.focus();
+        textarea.select();
+        var ok = document.execCommand('copy');
+        document.body.removeChild(textarea);
+        if(!ok) throw new Error('copy failed');
+        resolve();
+      } catch (error) {
+        reject(error);
+      }
+    });
+  }
+
+  function setCopyStatus(node, message, isError){
+    if(!node) return;
+    node.textContent = message || '';
+    node.classList.toggle('is-error', !!isError);
   }
 
   function openSheetPickerModal(options){
