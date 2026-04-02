@@ -181,3 +181,12 @@ th{position:sticky;top:0;background:#f8fafc;font-size:12px}
   .login-card{padding:40px 22px 28px}
   .login-google-btn{width:100%;min-width:0}
 }
+
+
+.copy-toolbar{display:flex;justify-content:space-between;gap:12px;align-items:flex-start;flex-wrap:wrap;margin-bottom:12px}
+.copy-actions{display:flex;gap:8px;flex-wrap:wrap}
+.copy-btn{appearance:none;border:1px solid rgba(15,23,42,.12);background:#fff;color:var(--text);border-radius:12px;padding:8px 12px;font:600 13px/1.2 inherit;cursor:pointer;transition:.16s ease}
+.copy-btn:hover{border-color:rgba(37,99,235,.32);background:#f8fbff}
+.copy-feedback{min-height:18px;font-size:12px;color:var(--muted);padding-top:8px}
+.copy-feedback.ok{color:var(--ok)}
+.copy-feedback.bad{color:var(--danger)}
