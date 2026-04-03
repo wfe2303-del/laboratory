@@ -185,17 +185,22 @@ th{position:sticky;top:0;background:#f8fafc;font-size:12px}
 .th-cell{display:flex;align-items:center;justify-content:space-between;gap:8px;min-width:0}
 .th-label{min-width:0;overflow:hidden;text-overflow:ellipsis}
 .th-actions{display:inline-flex;align-items:center;gap:6px;flex:0 0 auto}
-.th-copy-btn{
+.th-copy-icon-btn{
   appearance:none;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  width:28px;
+  height:28px;
   border:1px solid rgba(15,23,42,.12);
   background:#fff;
   color:var(--muted);
   border-radius:999px;
-  padding:4px 8px;
-  font:700 11px/1 inherit;
+  padding:0;
   cursor:pointer;
   transition:.15s ease;
 }
-.th-copy-btn:hover{border-color:rgba(37,99,235,.32);color:var(--primary);background:#f8fbff}
-.th-copy-btn.ok{border-color:rgba(22,163,74,.25);color:var(--ok);background:rgba(22,163,74,.06)}
-.th-copy-btn.bad{border-color:rgba(220,38,38,.24);color:var(--danger);background:rgba(220,38,38,.06)}
+.th-copy-icon-btn svg{width:14px;height:14px;display:block}
+.th-copy-icon-btn:hover{border-color:rgba(37,99,235,.32);color:var(--primary);background:#f8fbff}
+.th-copy-icon-btn.ok{border-color:rgba(22,163,74,.25);color:var(--ok);background:rgba(22,163,74,.06)}
+.th-copy-icon-btn.bad{border-color:rgba(220,38,38,.24);color:var(--danger);background:rgba(220,38,38,.06)}

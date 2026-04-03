@@ -307,22 +307,24 @@
     headers = headers || [];
     rows = rows || [];
 
-    function copyWholeTable(){
-      var lines = [];
-      if(headers.length){
-        lines.push(headers.map(normalizeCopyCell).join('\t'));
-      }
-      rows.forEach(function(row){
-        lines.push((row || []).map(normalizeCopyCell).join('\t'));
-      });
-      return copyText(lines.join('\n'));
+    function normalizeHeaderKey(header){
+      return String(header == null ? '' : header)
+        .trim()
+        .toLowerCase()
+        .replace(/\s+/g, '');
     }
 
-    function copySingleColumn(columnIndex, includeHeader){
+    function shouldShowCopyIcon(header){
+      var key = normalizeHeaderKey(header);
+      return key === 'name' || key === 'phone' || key === 'matched';
+    }
+
+    function buildCopyIconSvg(){
+      return '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M9 9.75A2.25 2.25 0 0 1 11.25 7.5h7.5A2.25 2.25 0 0 1 21 9.75v9A2.25 2.25 0 0 1 18.75 21h-7.5A2.25 2.25 0 0 1 9 18.75v-9Zm-6-3A2.25 2.25 0 0 1 5.25 4.5h7.5A2.25 2.25 0 0 1 15 6.75V7.5h-3.75A3.75 3.75 0 0 0 7.5 11.25V15H5.25A2.25 2.25 0 0 1 3 12.75v-6Z" fill="currentColor"></path></svg>';
+    }
+
+    function copySingleColumn(columnIndex){
       var lines = [];
-      if(includeHeader && headers[columnIndex] != null){
-        lines.push(normalizeCopyCell(headers[columnIndex]));
-      }
       rows.forEach(function(row){
         lines.push(normalizeCopyCell(row && row[columnIndex]));
       });
@@ -344,44 +346,38 @@
       label.textContent = header;
       cell.appendChild(label);
 
-      var actions = document.createElement('div');
-      actions.className = 'th-actions';
+      if(shouldShowCopyIcon(header)){
+        var actions = document.createElement('div');
+        actions.className = 'th-actions';
 
-      if(columnIndex === 0){
-        var allBtn = document.createElement('button');
-        allBtn.type = 'button';
-        allBtn.className = 'th-copy-btn';
-        allBtn.textContent = '전체';
-        allBtn.title = '표 전체 복사';
-        allBtn.setAttribute('aria-label', '표 전체 복사');
-        allBtn.addEventListener('click', function(event){
+        var copyBtn = document.createElement('button');
+        copyBtn.type = 'button';
+        copyBtn.className = 'th-copy-icon-btn';
+        copyBtn.innerHTML = buildCopyIconSvg();
+        copyBtn.title = String(header) + ' 열 복사';
+        copyBtn.setAttribute('aria-label', String(header) + ' 열 복사');
+        copyBtn.addEventListener('click', function(event){
           event.stopPropagation();
-          copyWholeTable().then(function(){
-            flashCopyButton(allBtn, '전체', 'ok');
+          copySingleColumn(columnIndex).then(function(){
+            copyBtn.classList.remove('bad');
+            copyBtn.classList.add('ok');
+            window.clearTimeout(copyBtn._copyFlashTimer);
+            copyBtn._copyFlashTimer = window.setTimeout(function(){
+              copyBtn.classList.remove('ok', 'bad');
+            }, 1200);
           }).catch(function(){
-            flashCopyButton(allBtn, '전체', 'bad');
+            copyBtn.classList.remove('ok');
+            copyBtn.classList.add('bad');
+            window.clearTimeout(copyBtn._copyFlashTimer);
+            copyBtn._copyFlashTimer = window.setTimeout(function(){
+              copyBtn.classList.remove('ok', 'bad');
+            }, 1200);
           });
         });
-        actions.appendChild(allBtn);
+        actions.appendChild(copyBtn);
+        cell.appendChild(actions);
       }
 
-      var copyBtn = document.createElement('button');
-      copyBtn.type = 'button';
-      copyBtn.className = 'th-copy-btn';
-      copyBtn.textContent = '복사';
-      copyBtn.title = String(header) + ' 열 복사';
-      copyBtn.setAttribute('aria-label', String(header) + ' 열 복사');
-      copyBtn.addEventListener('click', function(event){
-        event.stopPropagation();
-        copySingleColumn(columnIndex, false).then(function(){
-          flashCopyButton(copyBtn, '복사', 'ok');
-        }).catch(function(){
-          flashCopyButton(copyBtn, '복사', 'bad');
-        });
-      });
-      actions.appendChild(copyBtn);
-
-      cell.appendChild(actions);
       th.appendChild(cell);
       headerRow.appendChild(th);
     });
@@ -389,10 +385,11 @@
     table.appendChild(thead);
     var tbody = document.createElement('tbody');
     rows.forEach(function(row){
+      row = row || [];
       var tr = document.createElement('tr');
-      row.forEach(function(cell){
+      headers.forEach(function(_, columnIndex){
         var td = document.createElement('td');
-        td.textContent = cell == null ? '' : String(cell);
+        td.textContent = row[columnIndex] == null ? '' : String(row[columnIndex]);
         tr.appendChild(td);
       });
       tbody.appendChild(tr);
