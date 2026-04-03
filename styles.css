@@ -182,11 +182,20 @@ th{position:sticky;top:0;background:#f8fafc;font-size:12px}
   .login-google-btn{width:100%;min-width:0}
 }
 
-
-.copy-toolbar{display:flex;justify-content:space-between;gap:12px;align-items:flex-start;flex-wrap:wrap;margin-bottom:12px}
-.copy-actions{display:flex;gap:8px;flex-wrap:wrap}
-.copy-btn{appearance:none;border:1px solid rgba(15,23,42,.12);background:#fff;color:var(--text);border-radius:12px;padding:8px 12px;font:600 13px/1.2 inherit;cursor:pointer;transition:.16s ease}
-.copy-btn:hover{border-color:rgba(37,99,235,.32);background:#f8fbff}
-.copy-feedback{min-height:18px;font-size:12px;color:var(--muted);padding-top:8px}
-.copy-feedback.ok{color:var(--ok)}
-.copy-feedback.bad{color:var(--danger)}
+.th-cell{display:flex;align-items:center;justify-content:space-between;gap:8px;min-width:0}
+.th-label{min-width:0;overflow:hidden;text-overflow:ellipsis}
+.th-actions{display:inline-flex;align-items:center;gap:6px;flex:0 0 auto}
+.th-copy-btn{
+  appearance:none;
+  border:1px solid rgba(15,23,42,.12);
+  background:#fff;
+  color:var(--muted);
+  border-radius:999px;
+  padding:4px 8px;
+  font:700 11px/1 inherit;
+  cursor:pointer;
+  transition:.15s ease;
+}
+.th-copy-btn:hover{border-color:rgba(37,99,235,.32);color:var(--primary);background:#f8fbff}
+.th-copy-btn.ok{border-color:rgba(22,163,74,.25);color:var(--ok);background:rgba(22,163,74,.06)}
+.th-copy-btn.bad{border-color:rgba(220,38,38,.24);color:var(--danger);background:rgba(220,38,38,.06)}

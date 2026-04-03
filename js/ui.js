@@ -290,82 +290,105 @@
     });
   }
 
-  function setCopyFeedback(feedbackEl, message, kind){
-    if(!feedbackEl) return;
-    feedbackEl.textContent = message || '';
-    feedbackEl.className = 'copy-feedback' + (kind ? ' ' + kind : '');
-  }
-
-  function buildCopyToolbar(headers, rows){
-    var toolbar = document.createElement('div');
-    toolbar.className = 'copy-toolbar';
-
-    var actions = document.createElement('div');
-    actions.className = 'copy-actions';
-
-    var feedback = document.createElement('div');
-    feedback.className = 'copy-feedback';
-
-    function makeBtn(label, onClick){
-      var btn = document.createElement('button');
-      btn.type = 'button';
-      btn.className = 'copy-btn';
-      btn.textContent = label;
-      btn.addEventListener('click', async function(){
-        try {
-          await onClick();
-        } catch (error) {
-          setCopyFeedback(feedback, '복사 실패', 'bad');
-        }
-      });
-      return btn;
-    }
-
-    actions.appendChild(makeBtn('전체 복사', function(){
-      var lines = [];
-      if((headers || []).length){
-        lines.push(headers.map(normalizeCopyCell).join('\t'));
-      }
-      (rows || []).forEach(function(row){
-        lines.push((row || []).map(normalizeCopyCell).join('\t'));
-      });
-      return copyText(lines.join('\n')).then(function(){
-        setCopyFeedback(feedback, '전체 표 복사 완료', 'ok');
-      });
-    }));
-
-    (headers || []).forEach(function(header, columnIndex){
-      actions.appendChild(makeBtn(String(header) + ' 복사', function(){
-        var lines = (rows || []).map(function(row){
-          return normalizeCopyCell(row && row[columnIndex]);
-        });
-        return copyText(lines.join('\n')).then(function(){
-          setCopyFeedback(feedback, String(header) + ' 열 복사 완료', 'ok');
-        });
-      }));
-    });
-
-    toolbar.appendChild(actions);
-    toolbar.appendChild(feedback);
-    return toolbar;
+  function flashCopyButton(button, baseLabel, state){
+    if(!button) return;
+    var label = state === 'ok' ? '복사됨' : '실패';
+    button.textContent = label;
+    button.classList.remove('ok', 'bad');
+    if(state) button.classList.add(state);
+    window.clearTimeout(button._copyFlashTimer);
+    button._copyFlashTimer = window.setTimeout(function(){
+      button.textContent = baseLabel;
+      button.classList.remove('ok', 'bad');
+    }, 1200);
   }
 
   function buildTableWrap(headers, rows){
+    headers = headers || [];
+    rows = rows || [];
+
+    function copyWholeTable(){
+      var lines = [];
+      if(headers.length){
+        lines.push(headers.map(normalizeCopyCell).join('\t'));
+      }
+      rows.forEach(function(row){
+        lines.push((row || []).map(normalizeCopyCell).join('\t'));
+      });
+      return copyText(lines.join('\n'));
+    }
+
+    function copySingleColumn(columnIndex, includeHeader){
+      var lines = [];
+      if(includeHeader && headers[columnIndex] != null){
+        lines.push(normalizeCopyCell(headers[columnIndex]));
+      }
+      rows.forEach(function(row){
+        lines.push(normalizeCopyCell(row && row[columnIndex]));
+      });
+      return copyText(lines.join('\n'));
+    }
+
     var wrap = document.createElement('div');
     wrap.className = 'table-wrap';
-    wrap.appendChild(buildCopyToolbar(headers || [], rows || []));
     var table = document.createElement('table');
     var thead = document.createElement('thead');
     var headerRow = document.createElement('tr');
-    (headers || []).forEach(function(header){
+    headers.forEach(function(header, columnIndex){
       var th = document.createElement('th');
-      th.textContent = header;
+      var cell = document.createElement('div');
+      cell.className = 'th-cell';
+
+      var label = document.createElement('span');
+      label.className = 'th-label';
+      label.textContent = header;
+      cell.appendChild(label);
+
+      var actions = document.createElement('div');
+      actions.className = 'th-actions';
+
+      if(columnIndex === 0){
+        var allBtn = document.createElement('button');
+        allBtn.type = 'button';
+        allBtn.className = 'th-copy-btn';
+        allBtn.textContent = '전체';
+        allBtn.title = '표 전체 복사';
+        allBtn.setAttribute('aria-label', '표 전체 복사');
+        allBtn.addEventListener('click', function(event){
+          event.stopPropagation();
+          copyWholeTable().then(function(){
+            flashCopyButton(allBtn, '전체', 'ok');
+          }).catch(function(){
+            flashCopyButton(allBtn, '전체', 'bad');
+          });
+        });
+        actions.appendChild(allBtn);
+      }
+
+      var copyBtn = document.createElement('button');
+      copyBtn.type = 'button';
+      copyBtn.className = 'th-copy-btn';
+      copyBtn.textContent = '복사';
+      copyBtn.title = String(header) + ' 열 복사';
+      copyBtn.setAttribute('aria-label', String(header) + ' 열 복사');
+      copyBtn.addEventListener('click', function(event){
+        event.stopPropagation();
+        copySingleColumn(columnIndex, false).then(function(){
+          flashCopyButton(copyBtn, '복사', 'ok');
+        }).catch(function(){
+          flashCopyButton(copyBtn, '복사', 'bad');
+        });
+      });
+      actions.appendChild(copyBtn);
+
+      cell.appendChild(actions);
+      th.appendChild(cell);
       headerRow.appendChild(th);
     });
     thead.appendChild(headerRow);
     table.appendChild(thead);
     var tbody = document.createElement('tbody');
-    (rows || []).forEach(function(row){
+    rows.forEach(function(row){
       var tr = document.createElement('tr');
       row.forEach(function(cell){
         var td = document.createElement('td');
